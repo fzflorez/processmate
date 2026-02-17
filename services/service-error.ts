@@ -7,27 +7,27 @@
  * Service error categories for better error handling and user experience
  */
 export enum ServiceErrorCategory {
-  VALIDATION = 'VALIDATION',
-  AUTHENTICATION = 'AUTHENTICATION',
-  AUTHORIZATION = 'AUTHORIZATION',
-  NOT_FOUND = 'NOT_FOUND',
-  CONFLICT = 'CONFLICT',
-  EXTERNAL_SERVICE = 'EXTERNAL_SERVICE',
-  DATABASE = 'DATABASE',
-  NETWORK = 'NETWORK',
-  TIMEOUT = 'TIMEOUT',
-  INTERNAL = 'INTERNAL',
-  UNKNOWN = 'UNKNOWN',
+  VALIDATION = "VALIDATION",
+  AUTHENTICATION = "AUTHENTICATION",
+  AUTHORIZATION = "AUTHORIZATION",
+  NOT_FOUND = "NOT_FOUND",
+  CONFLICT = "CONFLICT",
+  EXTERNAL_SERVICE = "EXTERNAL_SERVICE",
+  DATABASE = "DATABASE",
+  NETWORK = "NETWORK",
+  TIMEOUT = "TIMEOUT",
+  INTERNAL = "INTERNAL",
+  UNKNOWN = "UNKNOWN",
 }
 
 /**
  * Service error severity levels
  */
 export enum ServiceErrorSeverity {
-  LOW = 'LOW',
-  MEDIUM = 'MEDIUM',
-  HIGH = 'HIGH',
-  CRITICAL = 'CRITICAL',
+  LOW = "LOW",
+  MEDIUM = "MEDIUM",
+  HIGH = "HIGH",
+  CRITICAL = "CRITICAL",
 }
 
 /**
@@ -74,11 +74,11 @@ export class ServiceError extends Error {
       userId?: string;
       service?: string;
       operation?: string;
-    }
+    },
   ) {
     super(message);
-    
-    this.name = 'ServiceError';
+
+    this.name = "ServiceError";
     this.code = code;
     this.category = category;
     this.severity = severity;
@@ -120,14 +120,14 @@ export class ServiceError extends Error {
   static validation(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.VALIDATION,
       ServiceErrorSeverity.MEDIUM,
-      { details }
+      { details },
     );
   }
 
@@ -137,14 +137,14 @@ export class ServiceError extends Error {
   static authentication(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.AUTHENTICATION,
       ServiceErrorSeverity.HIGH,
-      { details }
+      { details },
     );
   }
 
@@ -154,14 +154,14 @@ export class ServiceError extends Error {
   static authorization(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.AUTHORIZATION,
       ServiceErrorSeverity.HIGH,
-      { details }
+      { details },
     );
   }
 
@@ -171,14 +171,14 @@ export class ServiceError extends Error {
   static notFound(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.NOT_FOUND,
       ServiceErrorSeverity.LOW,
-      { details }
+      { details },
     );
   }
 
@@ -188,14 +188,14 @@ export class ServiceError extends Error {
   static conflict(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.CONFLICT,
       ServiceErrorSeverity.MEDIUM,
-      { details }
+      { details },
     );
   }
 
@@ -206,14 +206,14 @@ export class ServiceError extends Error {
     code: string,
     message: string,
     cause?: Error,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.EXTERNAL_SERVICE,
       ServiceErrorSeverity.HIGH,
-      { cause, details }
+      { cause, details },
     );
   }
 
@@ -224,14 +224,14 @@ export class ServiceError extends Error {
     code: string,
     message: string,
     cause?: Error,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.DATABASE,
       ServiceErrorSeverity.HIGH,
-      { cause, details }
+      { cause, details },
     );
   }
 
@@ -242,14 +242,14 @@ export class ServiceError extends Error {
     code: string,
     message: string,
     cause?: Error,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.NETWORK,
       ServiceErrorSeverity.MEDIUM,
-      { cause, details }
+      { cause, details },
     );
   }
 
@@ -259,14 +259,14 @@ export class ServiceError extends Error {
   static timeout(
     code: string,
     message: string,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.TIMEOUT,
       ServiceErrorSeverity.MEDIUM,
-      { details }
+      { details },
     );
   }
 
@@ -277,14 +277,14 @@ export class ServiceError extends Error {
     code: string,
     message: string,
     cause?: Error,
-    details?: Record<string, unknown>
+    details?: Record<string, unknown>,
   ): ServiceError {
     return new ServiceError(
       code,
       message,
       ServiceErrorCategory.INTERNAL,
       ServiceErrorSeverity.CRITICAL,
-      { cause, details }
+      { cause, details },
     );
   }
 
@@ -295,18 +295,36 @@ export class ServiceError extends Error {
     error: Error,
     code?: string,
     category?: ServiceErrorCategory,
-    severity?: ServiceErrorSeverity
+    severity?: ServiceErrorSeverity,
   ): ServiceError {
     if (error instanceof ServiceError) {
       return error;
     }
 
     return new ServiceError(
-      code || 'WRAPPED_ERROR',
+      code || "WRAPPED_ERROR",
       error.message,
       category || ServiceErrorCategory.UNKNOWN,
       severity || ServiceErrorSeverity.MEDIUM,
-      { cause: error }
+      { cause: error },
+    );
+  }
+
+  /**
+   * Create an unknown error
+   */
+  static unknownError(
+    message: string,
+    code?: string,
+    cause?: Error,
+    details?: Record<string, unknown>,
+  ): ServiceError {
+    return new ServiceError(
+      code || "UNKNOWN_ERROR",
+      message,
+      ServiceErrorCategory.UNKNOWN,
+      ServiceErrorSeverity.MEDIUM,
+      { cause, details },
     );
   }
 }

@@ -3,23 +3,28 @@
  * Zod schemas for validating AI responses and API responses
  */
 
-import { z } from 'zod';
+import { z } from "zod";
 
 // AI API Response Schema
 export const AIResponseSchema = z.object({
   id: z.string().uuid(),
-  object: z.literal('chat.completion'),
+  object: z.literal("chat.completion"),
   created: z.number(),
   model: z.string().min(1),
   choices: z.array(
     z.object({
       index: z.number(),
       message: z.object({
-        role: z.literal('assistant'),
+        role: z.literal("assistant"),
         content: z.string().nullable(),
       }),
-      finish_reason: z.enum(['stop', 'length', 'content_filter', 'function_call']),
-    })
+      finish_reason: z.enum([
+        "stop",
+        "length",
+        "content_filter",
+        "function_call",
+      ]),
+    }),
   ),
   usage: z.object({
     prompt_tokens: z.number().nonnegative(),
@@ -31,18 +36,20 @@ export const AIResponseSchema = z.object({
 // Streaming Response Chunk Schema
 export const AIStreamChunkSchema = z.object({
   id: z.string(),
-  object: z.literal('chat.completion.chunk'),
+  object: z.literal("chat.completion.chunk"),
   created: z.number(),
   model: z.string(),
   choices: z.array(
     z.object({
       index: z.number(),
       delta: z.object({
-        role: z.enum(['assistant']).optional(),
+        role: z.enum(["assistant"]).optional(),
         content: z.string().optional(),
       }),
-      finish_reason: z.enum(['stop', 'length', 'content_filter', 'function_call']).nullable(),
-    })
+      finish_reason: z
+        .enum(["stop", "length", "content_filter", "function_call"])
+        .nullable(),
+    }),
   ),
 });
 
@@ -73,7 +80,7 @@ export const ProcessedResponseSchema = z.object({
     sources: z.array(z.string()).optional(),
     reasoning: z.string().optional(),
   }),
-  status: z.enum(['success', 'error', 'filtered']),
+  status: z.enum(["success", "error", "filtered"]),
   error: z.string().optional(),
   timestamp: z.coerce.date(),
 });
@@ -90,7 +97,7 @@ export const ResponseValidationSchema = z.object({
 export const ContentFilterSchema = z.object({
   flagged: z.boolean(),
   categories: z.array(z.string()),
-  severity: z.enum(['low', 'medium', 'high']),
+  severity: z.enum(["low", "medium", "high"]),
   filteredContent: z.string().optional(),
   reason: z.string().optional(),
 });
@@ -130,6 +137,52 @@ export const validateResponseQuality = (data: unknown) => {
   return ResponseQualitySchema.safeParse(data);
 };
 
+// ProcessMate Structured Response Schema
+export const ProcessMateResponseSchema = z.object({
+  intent: z.enum(["document", "process", "reminder", "general"]),
+  title: z.string().min(1).max(100),
+  summary: z.string().min(1).max(200),
+  content: z.union([
+    // Document intent content
+    z.object({
+      documentType: z.enum(["formal letter", "email", "request", "other"]),
+      sections: z.array(
+        z.object({
+          heading: z.string(),
+          body: z.string(),
+        }),
+      ),
+    }),
+    // Process intent content
+    z.object({
+      steps: z.array(
+        z.object({
+          step: z.number().positive(),
+          description: z.string(),
+          status: z.enum(["pending", "in_progress", "completed"]),
+        }),
+      ),
+      estimatedDuration: z.string(),
+    }),
+    // Reminder intent content
+    z.object({
+      eventTitle: z.string(),
+      date: z.string().nullable(),
+      notes: z.string(),
+    }),
+    // General intent content
+    z.object({
+      response: z.string(),
+    }),
+  ]),
+  confidence: z.number().min(0).max(1),
+});
+
+// Validation function for ProcessMate responses
+export const validateProcessMateResponse = (data: unknown) => {
+  return ProcessMateResponseSchema.safeParse(data);
+};
+
 // Type exports for inference
 export type AIResponseInput = z.infer<typeof AIResponseSchema>;
 export type AIStreamChunkInput = z.infer<typeof AIStreamChunkSchema>;
@@ -138,3 +191,6 @@ export type ProcessedResponseInput = z.infer<typeof ProcessedResponseSchema>;
 export type ResponseValidationInput = z.infer<typeof ResponseValidationSchema>;
 export type ContentFilterInput = z.infer<typeof ContentFilterSchema>;
 export type ResponseQualityInput = z.infer<typeof ResponseQualitySchema>;
+export type ProcessMateResponseInput = z.infer<
+  typeof ProcessMateResponseSchema
+>;

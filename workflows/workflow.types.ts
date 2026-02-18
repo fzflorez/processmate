@@ -3,32 +3,36 @@
  * Provides type safety for workflow definitions and execution
  */
 
-import type { PromptTemplate, PromptExecutionContext, PromptExecutionResult } from '../prompts/prompt.types';
+import type {
+  PromptTemplate,
+  PromptExecutionContext,
+  PromptExecutionResult,
+} from "../prompts/prompt.types";
 
 /**
  * Workflow step types
  */
 export enum WorkflowStepType {
-  PROMPT = 'prompt',
-  CONDITION = 'condition',
-  PARALLEL = 'parallel',
-  DELAY = 'delay',
-  TRANSFORM = 'transform',
-  VALIDATE = 'validate',
-  API_CALL = 'api_call',
-  CUSTOM = 'custom',
+  PROMPT = "prompt",
+  CONDITION = "condition",
+  PARALLEL = "parallel",
+  DELAY = "delay",
+  TRANSFORM = "transform",
+  VALIDATE = "validate",
+  API_CALL = "api_call",
+  CUSTOM = "custom",
 }
 
 /**
  * Workflow execution status
  */
 export enum WorkflowStatus {
-  PENDING = 'pending',
-  RUNNING = 'running',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-  PAUSED = 'paused',
+  PENDING = "pending",
+  RUNNING = "running",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+  PAUSED = "paused",
 }
 
 /**
@@ -106,7 +110,7 @@ export interface ValidateWorkflowStep extends BaseWorkflowStep {
 export interface APICallWorkflowStep extends BaseWorkflowStep {
   type: WorkflowStepType.API_CALL;
   endpoint: string;
-  method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
+  method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH";
   headers?: Record<string, string>;
   body?: Record<string, unknown>;
   responsePath?: string; // Path to extract response data
@@ -124,7 +128,7 @@ export interface CustomWorkflowStep extends BaseWorkflowStep {
 /**
  * Union type for all workflow steps
  */
-export type WorkflowStep = 
+export type WorkflowStep =
   | PromptWorkflowStep
   | ConditionWorkflowStep
   | ParallelWorkflowStep
@@ -168,6 +172,7 @@ export interface WorkflowExecutionContext {
   currentStep?: string;
   stepHistory: WorkflowStepExecution[];
   metadata?: Record<string, unknown>;
+  duration?: number;
 }
 
 /**
@@ -203,15 +208,15 @@ export interface WorkflowExecutionResult {
  * Workflow event types
  */
 export enum WorkflowEventType {
-  STARTED = 'started',
-  STEP_STARTED = 'step_started',
-  STEP_COMPLETED = 'step_completed',
-  STEP_FAILED = 'step_failed',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  CANCELLED = 'cancelled',
-  PAUSED = 'paused',
-  RESUMED = 'resumed',
+  STARTED = "started",
+  STEP_STARTED = "step_started",
+  STEP_COMPLETED = "step_completed",
+  STEP_FAILED = "step_failed",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  CANCELLED = "cancelled",
+  PAUSED = "paused",
+  RESUMED = "resumed",
 }
 
 /**
@@ -237,7 +242,7 @@ export interface WorkflowConfig {
   maxConcurrentExecutions?: number;
   persistence?: {
     enabled: boolean;
-    storage: 'memory' | 'database' | 'file';
+    storage: "memory" | "database" | "file";
     retention: number; // hours
   };
 }
@@ -246,7 +251,10 @@ export interface WorkflowConfig {
  * Workflow handler interface
  */
 export interface WorkflowHandler {
-  execute(step: WorkflowStep, context: WorkflowExecutionContext): Promise<unknown>;
+  execute(
+    step: WorkflowStep,
+    context: WorkflowExecutionContext,
+  ): Promise<unknown>;
   validate?(step: WorkflowStep, input: unknown): boolean;
   transform?(input: unknown, step: TransformWorkflowStep): unknown;
 }

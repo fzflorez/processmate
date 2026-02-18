@@ -4,10 +4,13 @@
  */
 
 import { useState, useCallback, useEffect } from "react";
-import type { ChatMessage, MessageRole } from "../../chat/types";
-import type {
+import type { ChatMessage } from "../../chat/types";
+import { MessageRole } from "../../chat/types";
+import {
   ProcessStep,
   ProcessStepPriority,
+  ProcessStepType,
+  ProcessStepStatus,
 } from "../../process-builder/types";
 
 // Simple UUID generator
@@ -89,7 +92,7 @@ const PRIORITY_KEYWORDS = {
 
 interface DetectedReminder {
   id: string;
-  type: "date" | "task" | "deadline" | "appointment" | "milestone";
+  type: "date" | "task" | "reminder" | "deadline" | "appointment" | "milestone";
   title: string;
   description: string;
   date: Date;
@@ -112,19 +115,12 @@ interface ReminderDetectionState {
   lastAnalyzedMessageId: string | null;
 }
 
-interface ReminderDetectionActions {
-  analyzeMessage: (message: ChatMessage) => Promise<void>;
-  clearReminders: () => void;
-  dismissReminder: (reminderId: string) => void;
-  setError: (error: string | null) => void;
-}
-
 interface UseReminderDetectionOptions {
   onReminderDetected?: (reminder: DetectedReminder) => void;
   onTaskDetected?: (reminder: DetectedReminder) => void;
   onDeadlineDetected?: (reminder: DetectedReminder) => void;
   autoCreateProcess?: boolean;
-  workflowEngine?: any;
+  workflowEngine?: unknown;
 }
 
 export function useReminderDetection({
@@ -185,7 +181,7 @@ export function useReminderDetection({
     const words = text.toLowerCase().split(/\s+/);
 
     for (const word of words) {
-      let priority: ProcessStepPriority = "medium";
+      let priority: ProcessStepPriority = ProcessStepPriority.MEDIUM;
       let confidence = 50;
 
       // Check priority keywords
@@ -234,6 +230,7 @@ export function useReminderDetection({
       try {
         const detectedReminders: DetectedReminder[] = [];
         const text = message.content.map((c) => c.text).join(" ");
+        const words = text.split(/\s+/);
 
         // Extract dates
         const dates = extractDates(text);
@@ -244,7 +241,7 @@ export function useReminderDetection({
             title: `Date Detected: ${date.toLocaleDateString()}`,
             description: `Date mentioned: ${dateText}`,
             date,
-            priority: "medium",
+            priority: ProcessStepPriority.MEDIUM,
             confidence,
             sourceMessage: message.content.map((c) => c.text).join(" "),
             sourceMessageId: message.id,
@@ -278,13 +275,13 @@ export function useReminderDetection({
 
         // Look for deadlines (tasks with time sensitivity)
         const deadlineWords = words.filter(
-          (word) =>
+          (word: string) =>
             word.includes("deadline") ||
             word.includes("due") ||
             word.includes("deliverable"),
         );
 
-        deadlineWords.forEach((word) => {
+        deadlineWords.forEach((word: string) => {
           const contextWords = words.slice(
             Math.max(0, words.indexOf(word) - 5),
             words.indexOf(word) + 6,
@@ -297,7 +294,7 @@ export function useReminderDetection({
             title: `Deadline Detected: ${word}`,
             description: `Deadline or due date detected: ${context}`,
             date: new Date(),
-            priority: "high",
+            priority: ProcessStepPriority.HIGH,
             confidence: 75,
             sourceMessage: message.content.map((c) => c.text).join(" "),
             sourceMessageId: message.id,
@@ -319,6 +316,8 @@ export function useReminderDetection({
         detectedReminders.forEach((reminder) => {
           if (reminder.type === "date" && onReminderDetected) {
             onReminderDetected(reminder);
+          } else if (reminder.type === "reminder" && onReminderDetected) {
+            onReminderDetected(reminder);
           } else if (reminder.type === "task" && onTaskDetected) {
             onTaskDetected(reminder);
           } else if (reminder.type === "deadline" && onDeadlineDetected) {
@@ -332,8 +331,13 @@ export function useReminderDetection({
                 id: generateUUID(),
                 name: reminder.title,
                 description: reminder.description,
-                type: reminder.type === "task" ? "task" : "validation",
-                status: "pending",
+                type:
+                  reminder.type === "task"
+                    ? ProcessStepType.TASK
+                    : reminder.type === "reminder"
+                      ? ProcessStepType.NOTIFICATION
+                      : ProcessStepType.VALIDATION,
+                status: ProcessStepStatus.PENDING,
                 priority: reminder.priority,
                 dependencies: [],
                 inputs: [

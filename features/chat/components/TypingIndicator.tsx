@@ -3,19 +3,19 @@
  * Shows when AI is processing or typing a response
  */
 
-import React from 'react';
-import { Bot } from 'lucide-react';
+import React from "react";
+import { Bot } from "lucide-react";
 
 interface TypingIndicatorProps {
   message?: string;
   className?: string;
-  variant?: 'dots' | 'pulse' | 'wave';
+  variant?: "dots" | "pulse" | "wave";
 }
 
 export function TypingIndicator({
-  message = 'AI is thinking...',
-  className = '',
-  variant = 'dots',
+  message = "AI is thinking...",
+  className = "",
+  variant = "dots",
 }: TypingIndicatorProps) {
   const renderDots = () => (
     <div className="flex gap-1">
@@ -44,9 +44,9 @@ export function TypingIndicator({
 
   const renderIndicator = () => {
     switch (variant) {
-      case 'pulse':
+      case "pulse":
         return renderPulse();
-      case 'wave':
+      case "wave":
         return renderWave();
       default:
         return renderDots();
@@ -63,10 +63,12 @@ export function TypingIndicator({
       {/* Typing Content */}
       <div className="flex flex-col gap-2">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-medium text-gray-900">AI Assistant</span>
+          <span className="text-sm font-medium text-gray-900">
+            AI Assistant
+          </span>
           <span className="text-xs text-gray-500">Typing...</span>
         </div>
-        
+
         <div className="flex items-center gap-2">
           {renderIndicator()}
           <span className="text-sm text-gray-600">{message}</span>
@@ -75,5 +77,3 @@ export function TypingIndicator({
     </div>
   );
 }
-
-export default TypingIndicator;

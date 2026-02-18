@@ -3,22 +3,22 @@
  * Main chat interface with message list, input, and state management
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { MessageSquare, Settings, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { MessageSquare, Settings, Trash2 } from "lucide-react";
+import { MessageRole, MessageStatus } from "../types";
+import { useChat } from "../hooks";
+import type { AIService } from "../services/ai-service.interface";
+import type { ChatRepository } from "../services/chat-repository.interface";
 
-import type { ExtendedChatMessage } from '../types';
-import { MessageRole, MessageStatus } from '../types';
-import { useChat } from '../hooks';
-
-import ChatMessage from './ChatMessage';
-import ChatInput from './ChatInput';
-import TypingIndicator from './TypingIndicator';
+import { ChatMessage } from "./ChatMessage";
+import { ChatInput } from "./ChatInput";
+import { TypingIndicator } from "./TypingIndicator";
 
 interface ChatContainerProps {
   conversationId: string;
   userId: string;
-  aiService: any; // AIService instance
-  repository: any; // ChatRepository instance
+  aiService: AIService;
+  repository: ChatRepository;
   className?: string;
   showHeader?: boolean;
   showSettings?: boolean;
@@ -30,13 +30,13 @@ export function ChatContainer({
   userId,
   aiService,
   repository,
-  className = '',
+  className = "",
   showHeader = true,
   showSettings = true,
-  maxHeight = '600px',
+  maxHeight = "600px",
 }: ChatContainerProps) {
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  const [editContent, setEditContent] = useState('');
+  const [editContent, setEditContent] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -56,27 +56,26 @@ export function ChatContainer({
     sendMessage,
     regenerateResponse,
     editMessage,
-    deleteMessage,
     clearError,
     resetConversation,
   } = chat;
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === "Escape") {
         setEditingMessageId(null);
-        setEditContent('');
+        setEditContent("");
       }
     };
 
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const handleEditMessage = (messageId: string, content: string) => {
@@ -88,36 +87,40 @@ export function ChatContainer({
     try {
       await editMessage(messageId, content);
       setEditingMessageId(null);
-      setEditContent('');
+      setEditContent("");
     } catch (error) {
-      console.error('Failed to edit message:', error);
+      console.error("Failed to edit message:", error);
     }
   };
 
   const handleCancelEdit = () => {
     setEditingMessageId(null);
-    setEditContent('');
+    setEditContent("");
   };
 
   const handleCopyMessage = (content: string) => {
     // Toast notification could be added here
-    console.log('Message copied:', content);
+    console.log("Message copied:", content);
   };
 
   const handleClearConversation = () => {
-    if (window.confirm('Are you sure you want to clear this conversation?')) {
+    if (window.confirm("Are you sure you want to clear this conversation?")) {
       resetConversation();
     }
   };
 
   const isAITyping = messages.some(
-    msg => msg.role === MessageRole.ASSISTANT && msg.status === MessageStatus.PROCESSING
+    (msg) =>
+      msg.role === MessageRole.ASSISTANT &&
+      msg.status === MessageStatus.PROCESSING,
   );
 
   const hasMessages = messages.length > 0;
 
   return (
-    <div className={`flex flex-col bg-white border rounded-lg shadow-sm ${className}`}>
+    <div
+      className={`flex flex-col bg-white border rounded-lg shadow-sm ${className}`}
+    >
       {/* Header */}
       {showHeader && (
         <div className="flex items-center justify-between border-b px-4 py-3">
@@ -125,15 +128,16 @@ export function ChatContainer({
             <MessageSquare className="h-5 w-5 text-blue-500" />
             <div>
               <h2 className="font-semibold text-gray-900">
-                {conversation?.title || 'New Chat'}
+                {conversation?.title || "New Chat"}
               </h2>
               <p className="text-xs text-gray-500">
                 {messages.length} messages
-                {conversation && ` • Updated ${new Intl.DateTimeFormat('en-US', {
-                  hour: 'numeric',
-                  minute: '2-digit',
-                  hour12: true,
-                }).format(conversation.updatedAt)}`}
+                {conversation &&
+                  ` • Updated ${new Intl.DateTimeFormat("en-US", {
+                    hour: "numeric",
+                    minute: "2-digit",
+                    hour12: true,
+                  }).format(conversation.updatedAt)}`}
               </p>
             </div>
           </div>
@@ -197,9 +201,11 @@ export function ChatContainer({
         ) : !hasMessages ? (
           <div className="flex flex-col items-center justify-center h-64 text-gray-500">
             <MessageSquare className="h-12 w-12 mb-4 text-gray-300" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Start a conversation</h3>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              Start a conversation
+            </h3>
             <p className="text-sm text-gray-600 text-center max-w-md">
-              Ask me anything! I can help you with questions, generate content, 
+              Ask me anything! I can help you with questions, generate content,
               assist with tasks, and much more.
             </p>
           </div>
@@ -241,5 +247,3 @@ export function ChatContainer({
     </div>
   );
 }
-
-export default ChatContainer;

@@ -3,8 +3,8 @@
  * Handles message input with loading states and sending functionality
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, Paperclip, Mic, Square } from 'lucide-react';
+import React, { useState, useRef, useEffect } from "react";
+import { Send, Paperclip, Mic, Square } from "lucide-react";
 
 interface ChatInputProps {
   onSendMessage: (message: string) => Promise<void>;
@@ -21,13 +21,13 @@ export function ChatInput({
   onSendMessage,
   disabled = false,
   isLoading = false,
-  placeholder = 'Type your message...',
-  className = '',
+  placeholder = "Type your message...",
+  className = "",
   showAttachments = true,
   showVoiceRecord = true,
   maxLength = 4000,
 }: ChatInputProps) {
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -36,7 +36,7 @@ export function ChatInput({
   // Auto-resize textarea
   useEffect(() => {
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
       const scrollHeight = textareaRef.current.scrollHeight;
       textareaRef.current.style.height = `${Math.min(scrollHeight, 200)}px`;
     }
@@ -58,17 +58,19 @@ export function ChatInput({
     if (!message.trim() || disabled || isLoading) return;
 
     const messageToSend = message.trim();
-    setMessage('');
+    setMessage("");
     setCharCount(0);
 
     // Reset textarea height
     if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = "auto";
     }
 
     try {
       await onSendMessage(messageToSend);
     } catch (error) {
+      console.error("Error sending message:", error);
+      
       // Restore message on error
       setMessage(messageToSend);
       setCharCount(messageToSend.length);
@@ -76,7 +78,7 @@ export function ChatInput({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
@@ -86,10 +88,10 @@ export function ChatInput({
     const files = e.target.files;
     if (files && files.length > 0) {
       // Handle file attachment logic here
-      console.log('Files selected:', files);
+      console.log("Files selected:", files);
       // Reset file input
       if (fileInputRef.current) {
-        fileInputRef.current.value = '';
+        fileInputRef.current.value = "";
       }
     }
   };
@@ -112,9 +114,11 @@ export function ChatInput({
       <div className="max-w-4xl mx-auto">
         {/* Character count warning */}
         {isNearLimit && (
-          <div className={`mb-2 text-xs ${isAtLimit ? 'text-red-600' : 'text-yellow-600'}`}>
+          <div
+            className={`mb-2 text-xs ${isAtLimit ? "text-red-600" : "text-yellow-600"}`}
+          >
             {charCount}/{maxLength} characters
-            {isAtLimit && ' - Limit reached'}
+            {isAtLimit && " - Limit reached"}
           </div>
         )}
 
@@ -153,7 +157,7 @@ export function ChatInput({
             disabled={disabled || isLoading}
             rows={1}
             className="flex-1 resize-none border-0 bg-transparent py-2 text-sm placeholder-gray-500 focus:outline-none disabled:opacity-50"
-            style={{ minHeight: '24px', maxHeight: '200px' }}
+            style={{ minHeight: "24px", maxHeight: "200px" }}
           />
 
           {/* Voice Record / Stop Button */}
@@ -164,12 +168,13 @@ export function ChatInput({
               disabled={disabled || isLoading}
               className={`
                 rounded p-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed
-                ${isRecording 
-                  ? 'text-red-500 hover:text-red-600 bg-red-50' 
-                  : 'text-gray-400 hover:text-gray-600'
+                ${
+                  isRecording
+                    ? "text-red-500 hover:text-red-600 bg-red-50"
+                    : "text-gray-400 hover:text-gray-600"
                 }
               `}
-              title={isRecording ? 'Stop recording' : 'Start voice recording'}
+              title={isRecording ? "Stop recording" : "Start voice recording"}
             >
               {isRecording ? <Square size={18} /> : <Mic size={18} />}
             </button>
@@ -222,5 +227,3 @@ export function ChatInput({
     </div>
   );
 }
-
-export default ChatInput;

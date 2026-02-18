@@ -2,7 +2,7 @@
  * API-specific types and interfaces
  */
 
-import type { ApiResponse, PaginatedResponse, Pagination } from './common.types';
+import type { ApiResponse, PaginatedResponse } from './common.types';
 
 /**
  * HTTP methods supported by the API

@@ -17,7 +17,7 @@ export const MessageContentSchema = z.object({
     .enum(["text", "markdown", "code"] as const)
     .optional()
     .default("text"),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const AIMetadataSchema = z.object({
@@ -43,16 +43,18 @@ export const MessageStatusSchema = z.enum([
 ] as const);
 
 export const ChatMessageSchema = z.object({
-  id: z.string().uuid("Invalid message ID format"),
+  id: z
+    .string()
+    .uuid()
+    .optional()
+    .default(() => crypto.randomUUID()),
   role: MessageRoleSchema,
-  content: z
-    .array(MessageContentSchema)
-    .min(1, "At least one content item is required"),
-  timestamp: z.coerce.date(),
+  content: z.array(MessageContentSchema).default([]),
+  timestamp: z.coerce.date().default(() => new Date()),
   metadata: AIMetadataSchema.optional(),
-  conversationId: z.string().uuid("Invalid conversation ID format"),
-  parentId: z.string().uuid("Invalid parent ID format").optional(),
-  status: MessageStatusSchema,
+  conversationId: z.string().uuid().optional(),
+  parentId: z.string().uuid().optional(),
+  status: MessageStatusSchema.default("completed"),
   error: z.string().optional(),
 });
 
@@ -62,7 +64,7 @@ export const MessageAttachmentSchema = z.object({
   type: z.string().min(1, "Attachment type is required"),
   size: z.number().nonnegative(),
   url: z.string().url("Invalid attachment URL"),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const MessageReactionSchema = z.object({

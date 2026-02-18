@@ -16,7 +16,6 @@ import {
   createLoadingResult,
   createIdleResult,
   wrapServiceResult,
-  AsyncServiceResult,
 } from "./service-result";
 
 /**

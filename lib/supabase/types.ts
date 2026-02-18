@@ -161,6 +161,52 @@ export interface Database {
           >
         >;
       };
+
+      // Chat conversations table
+      chat_conversations: {
+        Row: {
+          id: string;
+          title: string;
+          user_id: string;
+          created_at: string;
+          updated_at: string;
+          status: string;
+          metadata: Json;
+          settings: Json;
+        };
+        Insert: Omit<
+          Database["public"]["Tables"]["chat_conversations"]["Row"],
+          "id" | "created_at" | "updated_at"
+        >;
+        Update: Partial<
+          Omit<
+            Database["public"]["Tables"]["chat_conversations"]["Row"],
+            "id" | "created_at" | "updated_at"
+          >
+        >;
+      };
+
+      // Chat messages table
+      chat_messages: {
+        Row: {
+          id: string;
+          role: string;
+          content: Json;
+          timestamp: string;
+          metadata: Json;
+          conversation_id: string;
+          parent_id: string | null;
+          status: string;
+          error: string | null;
+        };
+        Insert: Omit<
+          Database["public"]["Tables"]["chat_messages"]["Row"],
+          "id"
+        >;
+        Update: Partial<
+          Omit<Database["public"]["Tables"]["chat_messages"]["Row"], "id">
+        >;
+      };
     };
     Views: {
       [_ in never]: never;
@@ -219,6 +265,19 @@ export type PromptUpdate = Database["public"]["Tables"]["prompts"]["Update"];
 export type ApiKey = Database["public"]["Tables"]["api_keys"]["Row"];
 export type ApiKeyInsert = Database["public"]["Tables"]["api_keys"]["Insert"];
 export type ApiKeyUpdate = Database["public"]["Tables"]["api_keys"]["Update"];
+
+export type ChatConversation =
+  Database["public"]["Tables"]["chat_conversations"]["Row"];
+export type ChatConversationInsert =
+  Database["public"]["Tables"]["chat_conversations"]["Insert"];
+export type ChatConversationUpdate =
+  Database["public"]["Tables"]["chat_conversations"]["Update"];
+
+export type ChatMessage = Database["public"]["Tables"]["chat_messages"]["Row"];
+export type ChatMessageInsert =
+  Database["public"]["Tables"]["chat_messages"]["Insert"];
+export type ChatMessageUpdate =
+  Database["public"]["Tables"]["chat_messages"]["Update"];
 
 // Utility types for common operations
 export type TableName = keyof Database["public"]["Tables"];

@@ -5,7 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { cache } from "react";
-import type { Database, User } from "./types";
+import type { Database, UserInsert, UserUpdate } from "./types";
 
 // Supabase configuration from environment
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -102,10 +102,10 @@ export class SupabaseAdmin {
   /**
    * Create user with admin privileges
    */
-  async createUser(userData: Database["public"]["Tables"]["users"]["Insert"]) {
+  async createUser(userData: UserInsert) {
     const { data, error } = await this.client
       .from("users")
-      .insert(userData as any)
+      .insert(userData)
       .select()
       .single();
 
@@ -119,15 +119,20 @@ export class SupabaseAdmin {
   /**
    * Update user with admin privileges
    */
-  async updateUser(
-    userId: string,
-    userData: Partial<Pick<User, "email" | "name" | "avatar_url">>,
-  ) {
-    const { data, error } = await this.client
+  async updateUser(userId: string, userData: UserUpdate) {
+    // Create a client without strict typing to avoid the type inference issue
+    const client = createClient(supabaseUrl!, supabaseServiceKey!, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    const { data, error } = await client
       .from("users")
-      .update(userData as any)
+      .update(userData)
       .eq("id", userId)
-      .select()
+      .select("*")
       .single();
 
     if (error) {
@@ -167,10 +172,7 @@ export class SupabaseAdmin {
    * Get workflow execution statistics
    */
   async getWorkflowStats() {
-    const { data, error } = await this.client
-      .from("workflow_executions")
-      .select("status, count(*)")
-      .group("status");
+    const { data, error } = await this.client.rpc("get_workflow_stats");
 
     if (error) {
       throw new Error(`Failed to get workflow stats: ${error.message}`);
@@ -232,7 +234,7 @@ export function createServerSupabaseClient(options?: {
     persistSession?: boolean;
   };
 }) {
-  return createClient<Database>(supabaseUrl, supabaseServiceKey, {
+  return createClient<Database>(supabaseUrl!, supabaseServiceKey!, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,

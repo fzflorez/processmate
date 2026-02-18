@@ -116,7 +116,7 @@ const createQueryClient = (config?: QueryProviderConfig): QueryClient => {
       },
     }),
     mutationCache: new MutationCache({
-      onError: (error, variables, _context, _mutation) => {
+      onError: (error, variables) => {
         // Global mutation error handling
         console.error("Mutation error:", error, "Variables:", variables);
       },

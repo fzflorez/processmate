@@ -1,21 +1,19 @@
 // Chat Feature Module
 // Export all chat-related components, hooks, services, types, and schemas
 
-export * from "./components";
-export * from "./hooks";
-export * from "./services";
-export * from "./types";
-export * from "./schemas";
+export * from "./components/index";
+export * from "./hooks/index";
+export * from "./services/index";
+export * from "./types/index";
+export * from "./schemas/index";
 
 // Main exports
-export { useChat } from "./hooks";
-export type { UseChatReturn } from "./hooks";
-export { AIService, OpenAIService, createAIService } from "./services";
-export {
-  ChatRepository,
-  SupabaseChatRepository,
-  createChatRepository,
-} from "./services";
+export { useChat } from "./hooks/index";
+export type { UseChatReturn } from "./hooks/index";
+export type { AIService, OpenAIService } from "./services/index";
+export { createAIService } from "./services/index";
+export type { ChatRepository, SupabaseChatRepository } from "./services/index";
+export { createChatRepository } from "./services/index";
 
 // Component exports
 export {
@@ -23,4 +21,4 @@ export {
   ChatMessage,
   ChatInput,
   TypingIndicator,
-} from "./components";
+} from "./components/index";

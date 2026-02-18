@@ -3,131 +3,125 @@
  * Provides dynamic loading, compilation, and management of AI prompts
  */
 
-import type { 
-  PromptTemplate, 
-  PromptVariable, 
-  CompiledPrompt, 
+import type {
+  PromptTemplate,
+  CompiledPrompt,
   PromptValidationResult,
   PromptLoaderConfig,
   PromptExecutionContext,
   PromptExecutionResult,
-  AIModelConfig 
-} from './prompt.types';
+} from "./prompt.types";
+import { PromptCategory } from "./prompt.types";
 
 /**
- * Prompt cache entry
+ * Template cache entry
  */
 interface CacheEntry {
-  prompt: CompiledPrompt;
+  template: PromptTemplate;
   timestamp: number;
   ttl: number;
 }
 
-/**
- * Prompt Loader class
- */
 export class PromptLoader {
-  private cache: Map<string, CacheEntry> = new Map();
+  private templateCache: Map<string, CacheEntry> = new Map();
   private templates: Map<string, PromptTemplate> = new Map();
   private config: PromptLoaderConfig;
 
   constructor(config: PromptLoaderConfig = {}) {
     this.config = {
       enableCaching: true,
-      cacheTimeout: 300000, // 5 minutes
+      cacheTimeout: 300000,
       enableValidation: true,
       ...config,
     };
   }
 
-  /**
-   * Load prompt template from storage
-   */
-  async loadTemplate(id: string): Promise<PromptTemplate | null> {
-    // Check cache first
+  /* -------------------------------------------------------------------------- */
+  /*                               LOAD TEMPLATE                                */
+  /* -------------------------------------------------------------------------- */
+
+  async loadTemplate(id: string): Promise<PromptTemplate | undefined> {
     if (this.config.enableCaching) {
-      const cached = this.getCached(id);
-      if (cached) {
-        return cached.template;
-      }
+      const cached = this.getCachedTemplate(id);
+      if (cached) return cached;
     }
 
     try {
-      // In a real implementation, this would load from file system or API
       const template = await this.fetchTemplate(id);
-      
-      if (template) {
-        this.templates.set(id, template);
-        
-        if (this.config.enableValidation) {
-          const validation = this.validateTemplate(template);
-          if (!validation.isValid) {
-            console.warn(`Invalid template ${id}:`, validation.errors);
-          }
+
+      if (!template) return undefined;
+
+      this.templates.set(id, template);
+
+      if (this.config.enableValidation) {
+        const validation = this.validateTemplate(template);
+
+        if (!validation.isValid) {
+          console.warn(`Invalid template ${id}`, validation.errors);
         }
       }
-      
+
+      if (this.config.enableCaching) {
+        this.setTemplateCache(id, template);
+      }
+
       return template;
+    } catch (error) {
+      console.error(`Failed to load template ${id}`, error);
+      return undefined;
     }
-    
-    return null;
   }
 
-  /**
-   * Compile prompt template with variables
-   */
-  compilePrompt(
+  /* -------------------------------------------------------------------------- */
+  /*                              COMPILE PROMPT                                */
+  /* -------------------------------------------------------------------------- */
+
+  async compilePrompt(
     templateId: string,
-    variables: Record<string, unknown> = {}
-  ): CompiledPrompt | null {
-    const template = this.templates.get(templateId);
+    variables: Record<string, unknown> = {},
+  ): Promise<CompiledPrompt> {
+    let template = this.templates.get(templateId);
+
+    if (!template) {
+      template = await this.loadTemplate(templateId);
+    }
+
     if (!template) {
       throw new Error(`Template not found: ${templateId}`);
     }
 
-    try {
-      const compiled = this.processTemplate(template.template, variables);
-      
-      const compiledPrompt: CompiledPrompt = {
-        id: templateId,
-        content: compiled,
-        variables,
-        metadata: template.metadata || {},
-        compiledAt: new Date().toISOString(),
-      };
+    this.validateRequiredVariables(template, variables);
 
-      // Cache compiled prompt
-      if (this.config.enableCaching) {
-        this.setCache(templateId, compiledPrompt);
-      }
+    const compiledContent = this.processTemplate(template.template, variables);
 
-      return compiledPrompt;
-    } catch (error) {
-      throw new Error(`Failed to compile template ${templateId}: ${error}`);
-    }
+    return {
+      id: templateId,
+      content: compiledContent,
+      variables,
+      metadata: template.metadata ?? {},
+      compiledAt: new Date().toISOString(),
+    };
   }
 
-  /**
-   * Execute compiled prompt
-   */
+  /* -------------------------------------------------------------------------- */
+  /*                               EXECUTE PROMPT                               */
+  /* -------------------------------------------------------------------------- */
+
   async executePrompt(
     compiledPrompt: CompiledPrompt,
-    context: PromptExecutionContext
+    context: PromptExecutionContext,
   ): Promise<PromptExecutionResult> {
-    const startTime = Date.now();
-    
+    const start = Date.now();
+
     try {
-      // In a real implementation, this would call the AI service
       const result = await this.callAIService(compiledPrompt.content, context);
-      
-      const latency = Date.now() - startTime;
-      
+
       return {
         success: true,
         content: result.content,
         tokens: result.tokens,
         cost: result.cost,
-        latency,
+        latency: Date.now() - start,
         metadata: {
           ...result.metadata,
           templateId: compiledPrompt.id,
@@ -135,12 +129,10 @@ export class PromptLoader {
         },
       };
     } catch (error) {
-      const latency = Date.now() - startTime;
-      
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        latency,
+        error: error instanceof Error ? error.message : "Unknown error",
+        latency: Date.now() - start,
         metadata: {
           templateId: compiledPrompt.id,
           variables: compiledPrompt.variables,
@@ -149,62 +141,67 @@ export class PromptLoader {
     }
   }
 
-  /**
-   * Load and execute prompt in one step
-   */
+  /* -------------------------------------------------------------------------- */
+  /*                            LOAD + EXECUTE HELPER                           */
+  /* -------------------------------------------------------------------------- */
+
   async loadAndExecute(
     templateId: string,
-    variables: Record<string, unknown> = {},
-    context: PromptExecutionContext
+    variables: Record<string, unknown>,
+    context: PromptExecutionContext,
   ): Promise<PromptExecutionResult> {
-    const compiled = this.compilePrompt(templateId, variables);
-    if (!compiled) {
-      return {
-        success: false,
-        error: `Failed to compile template: ${templateId}`,
-        metadata: { templateId, variables },
-      };
-    }
-
+    const compiled = await this.compilePrompt(templateId, variables);
     return this.executePrompt(compiled, context);
   }
 
-  /**
-   * Process template string with variable substitution
-   */
-  private processTemplate(template: string, variables: Record<string, unknown>): string {
-    let processed = template;
-    
+  /* -------------------------------------------------------------------------- */
+  /*                         TEMPLATE VARIABLE PROCESSOR                        */
+  /* -------------------------------------------------------------------------- */
+
+  private processTemplate(
+    template: string,
+    variables: Record<string, unknown>,
+  ): string {
+    let output = template;
+
     for (const [key, value] of Object.entries(variables)) {
       const placeholder = `{{${key}}}`;
-      processed = processed.replace(new RegExp(placeholder, 'g'), String(value));
+
+      output = output.replace(
+        new RegExp(this.escapeRegex(placeholder), "g"),
+        String(value),
+      );
     }
-    
-    return processed;
+
+    return output;
   }
 
-  /**
-   * Validate prompt template structure
-   */
+  private escapeRegex(value: string): string {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                               VALIDATIONS                                  */
+  /* -------------------------------------------------------------------------- */
+
   private validateTemplate(template: PromptTemplate): PromptValidationResult {
     const errors: string[] = [];
     const warnings: string[] = [];
 
-    // Check required variables
     const usedVariables = this.extractVariables(template.template);
-    const requiredVariables = template.variables
-      .filter(v => v.required)
-      .map(v => v.name);
 
-    for (const required of requiredVariables) {
-      if (!usedVariables.includes(required)) {
-        errors.push(`Required variable '${required}' is not used in template`);
+    const requiredVariables = template.variables
+      .filter((v) => v.required)
+      .map((v) => v.name);
+
+    for (const variable of requiredVariables) {
+      if (!usedVariables.includes(variable)) {
+        errors.push(`Required variable '${variable}' not used in template`);
       }
     }
 
-    // Check template syntax
-    if (!template.template.includes('{{') || !template.template.includes('}}')) {
-      warnings.push('Template may not contain any variables');
+    if (!template.template.includes("{{")) {
+      warnings.push("Template may not contain variables");
     }
 
     return {
@@ -214,72 +211,78 @@ export class PromptLoader {
     };
   }
 
-  /**
-   * Extract variable names from template
-   */
-  private extractVariables(template: string): string[] {
-    const matches = template.match(/\{\{(\w+)\}\}/g);
-    if (!matches) return [];
-    
-    return [...new Set(matches.map(match => match[1]))];
+  private validateRequiredVariables(
+    template: PromptTemplate,
+    variables: Record<string, unknown>,
+  ) {
+    for (const variable of template.variables) {
+      if (variable.required && !(variable.name in variables)) {
+        throw new Error(`Missing required variable: ${variable.name}`);
+      }
+    }
   }
 
-  /**
-   * Fetch template from storage (placeholder implementation)
-   */
-  private async fetchTemplate(id: string): Promise<PromptTemplate | null> {
-    // This would be implemented to load from file system, database, or API
-    // For now, return a mock template
+  private extractVariables(template: string): string[] {
+    const regex = /\{\{\s*(\w+)\s*\}\}/g;
+    const matches = template.match(regex);
+
+    if (!matches) return [];
+
+    return [...new Set(matches.map((m) => m.replace(/[{}]/g, "").trim()))];
+  }
+
+  /* -------------------------------------------------------------------------- */
+  /*                                  STORAGE                                   */
+  /* -------------------------------------------------------------------------- */
+
+  private async fetchTemplate(id: string): Promise<PromptTemplate | undefined> {
     const mockTemplates: Record<string, PromptTemplate> = {
-      'chat.default': {
-        id: 'chat.default',
-        name: 'Default Chat',
-        description: 'Default chat prompt for general conversation',
-        category: 'chat' as any,
-        version: '1.0.0',
-        template: 'You are a helpful AI assistant. {{#if context}}Context: {{context}}{{/if}}\n\nUser: {{userInput}}',
+      "chat.default": {
+        id: "chat.default",
+        name: "Default Chat",
+        description: "Default chat prompt",
+        category: PromptCategory.CHAT,
+        version: "1.0.0",
+        template:
+          "You are a helpful AI assistant.\nContext: {{context}}\nUser: {{userInput}}",
         variables: [
-          { name: 'context', type: 'string', description: 'Conversation context', required: false },
-          { name: 'userInput', type: 'string', description: 'User input message', required: true },
-        ],
-        examples: [
           {
-            input: { userInput: 'Hello, how are you?' },
-            output: 'Hello! I am doing well, thank you for asking.',
-            description: 'Basic greeting',
+            name: "context",
+            type: "string",
+            description: "Conversation context",
+            required: false,
           },
-        ],
-      },
-      'process.analysis': {
-        id: 'process.analysis',
-        name: 'Process Analysis',
-        description: 'Analyze business processes and provide insights',
-        category: 'analysis' as any,
-        version: '1.0.0',
-        template: 'Analyze the following business process:\n\n{{processDescription}}\n\nProvide insights on:\n1. Efficiency opportunities\n2. Potential bottlenecks\n3. Improvement suggestions\n4. Risk factors',
-        variables: [
-          { name: 'processDescription', type: 'string', description: 'Description of the process to analyze', required: true },
+          {
+            name: "userInput",
+            type: "string",
+            description: "User input",
+            required: true,
+          },
         ],
       },
     };
 
-    return mockTemplates[id] || null;
+    return mockTemplates[id] ?? undefined;
   }
 
-  /**
-   * Call AI service (placeholder implementation)
-   */
+  /* -------------------------------------------------------------------------- */
+  /*                               AI SERVICE MOCK                              */
+  /* -------------------------------------------------------------------------- */
+
   private async callAIService(
     prompt: string,
-    context: PromptExecutionContext
-  ): Promise<{ content: string; tokens?: number; cost?: number; metadata?: Record<string, unknown> }> {
-    // This would be implemented to call the actual AI service
-    // For now, return a mock response
-    const mockResponse = `AI Response to: ${prompt.substring(0, 100)}...`;
-    
+    context: PromptExecutionContext,
+  ): Promise<{
+    content: string;
+    tokens?: number;
+    cost?: number;
+    metadata?: Record<string, unknown>;
+  }> {
+    const response = `AI Response to: ${prompt.substring(0, 100)}...`;
+
     return {
-      content: mockResponse,
-      tokens: Math.floor(Math.random() * 1000) + 100,
+      content: response,
+      tokens: Math.floor(Math.random() * 500) + 100,
       cost: Math.random() * 0.01,
       metadata: {
         model: context.model.model,
@@ -288,60 +291,44 @@ export class PromptLoader {
     };
   }
 
-  /**
-   * Get cached prompt
-   */
-  private getCached(id: string): CacheEntry | null {
-    const cached = this.cache.get(id);
-    if (!cached) return null;
-    
+  /* -------------------------------------------------------------------------- */
+  /*                                   CACHE                                    */
+  /* -------------------------------------------------------------------------- */
+
+  private getCachedTemplate(id: string): PromptTemplate | undefined {
+    const cached = this.templateCache.get(id);
+
+    if (!cached) return undefined;
+
     if (Date.now() - cached.timestamp > cached.ttl) {
-      this.cache.delete(id);
-      return null;
+      this.templateCache.delete(id);
+      return undefined;
     }
-    
-    return cached;
+
+    return cached.template;
   }
 
-  /**
-   * Set cached prompt
-   */
-  private setCache(id: string, prompt: CompiledPrompt): void {
-    if (!this.config.enableCaching) return;
-    
-    this.cache.set(id, {
-      prompt,
+  private setTemplateCache(id: string, template: PromptTemplate) {
+    this.templateCache.set(id, {
+      template,
       timestamp: Date.now(),
       ttl: this.config.cacheTimeout!,
     });
   }
 
-  /**
-   * Clear cache
-   */
-  clearCache(): void {
-    this.cache.clear();
+  clearCache() {
+    this.templateCache.clear();
   }
 
-  /**
-   * Get all loaded templates
-   */
   getLoadedTemplates(): PromptTemplate[] {
     return Array.from(this.templates.values());
   }
 
-  /**
-   * Get cache statistics
-   */
-  getCacheStats(): { size: number; hitRate: number } {
+  getCacheStats() {
     return {
-      size: this.cache.size,
-      hitRate: 0, // Would be calculated in real implementation
+      size: this.templateCache.size,
     };
   }
 }
 
-/**
- * Default prompt loader instance
- */
 export const promptLoader = new PromptLoader();

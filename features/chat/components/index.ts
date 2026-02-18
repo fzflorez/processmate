@@ -1,7 +1,7 @@
 // Chat Components
 // Export all chat-related UI components
 
-export { default as ChatContainer } from "./ChatContainer";
-export { default as ChatMessage } from "./ChatMessage";
-export { default as ChatInput } from "./ChatInput";
-export { default as TypingIndicator } from "./TypingIndicator";
+export { ChatContainer } from "./ChatContainer";
+export { ChatMessage } from "./ChatMessage";
+export { ChatInput } from "./ChatInput";
+export { TypingIndicator } from "./TypingIndicator";

@@ -42,7 +42,7 @@ export function ProcessForm({
       const fieldErrors: Record<string, string> = {};
       validation.error.issues.forEach((issue) => {
         if (issue.path.length > 0) {
-          fieldErrors[issue.path[0]] = issue.message;
+          fieldErrors[String(issue.path[0])] = issue.message;
         }
       });
       setErrors(fieldErrors);

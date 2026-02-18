@@ -3,7 +3,19 @@
  * Defines the contract for chat data persistence operations
  */
 
-import type { ChatMessage, ChatConversation, MessageStatus } from '../types';
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type {
+  ChatMessage,
+  ChatConversation,
+  MessageStatus,
+  MessageRole,
+  MessageContent,
+  AIMetadata,
+  ConversationStatus,
+  ConversationMetadata,
+  ConversationSettings,
+} from "../types";
+import type { Database } from "../../../lib/supabase/types";
 
 export interface ChatRepository {
   // Message operations
@@ -27,7 +39,11 @@ export interface ChatRepository {
    * @param offset - Optional offset for pagination
    * @returns Array of messages
    */
-  getMessages(conversationId: string, limit?: number, offset?: number): Promise<ChatMessage[]>;
+  getMessages(
+    conversationId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<ChatMessage[]>;
 
   /**
    * Update message status
@@ -63,14 +79,21 @@ export interface ChatRepository {
    * @param offset - Optional offset for pagination
    * @returns Array of conversations
    */
-  getConversations(userId: string, limit?: number, offset?: number): Promise<ChatConversation[]>;
+  getConversations(
+    userId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<ChatConversation[]>;
 
   /**
    * Update conversation
    * @param conversationId - The conversation ID
    * @param updates - Partial conversation updates
    */
-  updateConversation(conversationId: string, updates: Partial<ChatConversation>): Promise<void>;
+  updateConversation(
+    conversationId: string,
+    updates: Partial<ChatConversation>,
+  ): Promise<void>;
 
   /**
    * Delete a conversation
@@ -93,7 +116,7 @@ export interface ChatRepository {
       status?: string[];
       dateRange?: { start: Date; end: Date };
       tags?: string[];
-    }
+    },
   ): Promise<ChatConversation[]>;
 
   /**
@@ -123,26 +146,24 @@ export interface ChatRepository {
  * Concrete implementation using Supabase
  */
 export class SupabaseChatRepository implements ChatRepository {
-  private supabase: any; // Supabase client
+  private supabase: SupabaseClient;
 
-  constructor(supabaseClient: any) {
+  constructor(supabaseClient: SupabaseClient) {
     this.supabase = supabaseClient;
   }
 
   async saveMessage(message: ChatMessage): Promise<void> {
-    const { error } = await this.supabase
-      .from('chat_messages')
-      .insert({
-        id: message.id,
-        role: message.role,
-        content: message.content,
-        timestamp: message.timestamp.toISOString(),
-        metadata: message.metadata,
-        conversation_id: message.conversationId,
-        parent_id: message.parentId,
-        status: message.status,
-        error: message.error,
-      });
+    const { error } = await this.supabase.from("chat_messages").insert({
+      id: message.id,
+      role: message.role,
+      content: message.content,
+      timestamp: message.timestamp.toISOString(),
+      metadata: message.metadata,
+      conversation_id: message.conversationId,
+      parent_id: message.parentId,
+      status: message.status,
+      error: message.error,
+    });
 
     if (error) {
       throw new Error(`Failed to save message: ${error.message}`);
@@ -151,25 +172,29 @@ export class SupabaseChatRepository implements ChatRepository {
 
   async getMessage(messageId: string): Promise<ChatMessage | null> {
     const { data, error } = await this.supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('id', messageId)
+      .from("chat_messages")
+      .select("*")
+      .eq("id", messageId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
+      if (error.code === "PGRST116") return null; // Not found
       throw new Error(`Failed to get message: ${error.message}`);
     }
 
     return this.mapDbMessageToChatMessage(data);
   }
 
-  async getMessages(conversationId: string, limit = 50, offset = 0): Promise<ChatMessage[]> {
+  async getMessages(
+    conversationId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<ChatMessage[]> {
     const { data, error } = await this.supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('timestamp', { ascending: true })
+      .from("chat_messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .order("timestamp", { ascending: true })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -179,11 +204,14 @@ export class SupabaseChatRepository implements ChatRepository {
     return data.map(this.mapDbMessageToChatMessage);
   }
 
-  async updateMessageStatus(messageId: string, status: MessageStatus): Promise<void> {
+  async updateMessageStatus(
+    messageId: string,
+    status: MessageStatus,
+  ): Promise<void> {
     const { error } = await this.supabase
-      .from('chat_messages')
+      .from("chat_messages")
       .update({ status })
-      .eq('id', messageId);
+      .eq("id", messageId);
 
     if (error) {
       throw new Error(`Failed to update message status: ${error.message}`);
@@ -192,9 +220,9 @@ export class SupabaseChatRepository implements ChatRepository {
 
   async deleteMessage(messageId: string): Promise<void> {
     const { error } = await this.supabase
-      .from('chat_messages')
+      .from("chat_messages")
       .delete()
-      .eq('id', messageId);
+      .eq("id", messageId);
 
     if (error) {
       throw new Error(`Failed to delete message: ${error.message}`);
@@ -202,45 +230,49 @@ export class SupabaseChatRepository implements ChatRepository {
   }
 
   async saveConversation(conversation: ChatConversation): Promise<void> {
-    const { error } = await this.supabase
-      .from('chat_conversations')
-      .upsert({
-        id: conversation.id,
-        title: conversation.title,
-        user_id: conversation.userId,
-        created_at: conversation.createdAt.toISOString(),
-        updated_at: conversation.updatedAt.toISOString(),
-        status: conversation.status,
-        metadata: conversation.metadata,
-        settings: conversation.settings,
-      });
+    const { error } = await this.supabase.from("chat_conversations").upsert({
+      id: conversation.id,
+      title: conversation.title,
+      user_id: conversation.userId,
+      created_at: conversation.createdAt.toISOString(),
+      updated_at: conversation.updatedAt.toISOString(),
+      status: conversation.status,
+      metadata: conversation.metadata,
+      settings: conversation.settings,
+    });
 
     if (error) {
       throw new Error(`Failed to save conversation: ${error.message}`);
     }
   }
 
-  async getConversation(conversationId: string): Promise<ChatConversation | null> {
+  async getConversation(
+    conversationId: string,
+  ): Promise<ChatConversation | null> {
     const { data, error } = await this.supabase
-      .from('chat_conversations')
-      .select('*')
-      .eq('id', conversationId)
+      .from("chat_conversations")
+      .select("*")
+      .eq("id", conversationId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
+      if (error.code === "PGRST116") return null; // Not found
       throw new Error(`Failed to get conversation: ${error.message}`);
     }
 
     return this.mapDbConversationToChatConversation(data);
   }
 
-  async getConversations(userId: string, limit = 20, offset = 0): Promise<ChatConversation[]> {
+  async getConversations(
+    userId: string,
+    limit = 20,
+    offset = 0,
+  ): Promise<ChatConversation[]> {
     const { data, error } = await this.supabase
-      .from('chat_conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
+      .from("chat_conversations")
+      .select("*")
+      .eq("user_id", userId)
+      .order("updated_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
     if (error) {
@@ -250,14 +282,17 @@ export class SupabaseChatRepository implements ChatRepository {
     return data.map(this.mapDbConversationToChatConversation);
   }
 
-  async updateConversation(conversationId: string, updates: Partial<ChatConversation>): Promise<void> {
+  async updateConversation(
+    conversationId: string,
+    updates: Partial<ChatConversation>,
+  ): Promise<void> {
     const { error } = await this.supabase
-      .from('chat_conversations')
+      .from("chat_conversations")
       .update({
         ...updates,
         updated_at: new Date().toISOString(),
       })
-      .eq('id', conversationId);
+      .eq("id", conversationId);
 
     if (error) {
       throw new Error(`Failed to update conversation: ${error.message}`);
@@ -266,24 +301,32 @@ export class SupabaseChatRepository implements ChatRepository {
 
   async deleteConversation(conversationId: string): Promise<void> {
     const { error } = await this.supabase
-      .from('chat_conversations')
+      .from("chat_conversations")
       .delete()
-      .eq('id', conversationId);
+      .eq("id", conversationId);
 
     if (error) {
       throw new Error(`Failed to delete conversation: ${error.message}`);
     }
   }
 
-  async searchConversations(userId: string, query: string, filters?: any): Promise<ChatConversation[]> {
+  async searchConversations(
+    userId: string,
+    query: string,
+    filters?: {
+      status?: string[];
+      dateRange?: { start: Date; end: Date };
+      tags?: string[];
+    },
+  ): Promise<ChatConversation[]> {
     let dbQuery = this.supabase
-      .from('chat_conversations')
-      .select('*')
-      .eq('user_id', userId)
-      .ilike('title', `%${query}%`);
+      .from("chat_conversations")
+      .select("*")
+      .eq("user_id", userId)
+      .ilike("title", `%${query}%`);
 
     if (filters?.status?.length) {
-      dbQuery = dbQuery.in('status', filters.status);
+      dbQuery = dbQuery.in("status", filters.status);
     }
 
     const { data, error } = await dbQuery;
@@ -295,13 +338,16 @@ export class SupabaseChatRepository implements ChatRepository {
     return data.map(this.mapDbConversationToChatConversation);
   }
 
-  async searchMessages(conversationId: string, query: string): Promise<ChatMessage[]> {
+  async searchMessages(
+    conversationId: string,
+    query: string,
+  ): Promise<ChatMessage[]> {
     const { data, error } = await this.supabase
-      .from('chat_messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .ilike('content->>text', `%${query}%`)
-      .order('timestamp', { ascending: true });
+      .from("chat_messages")
+      .select("*")
+      .eq("conversation_id", conversationId)
+      .ilike("content->>text", `%${query}%`)
+      .order("timestamp", { ascending: true });
 
     if (error) {
       throw new Error(`Failed to search messages: ${error.message}`);
@@ -310,7 +356,15 @@ export class SupabaseChatRepository implements ChatRepository {
     return data.map(this.mapDbMessageToChatMessage);
   }
 
-  async getConversationStats(userId: string): Promise<any> {
+  async getConversationStats(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    userId: string,
+  ): Promise<{
+    totalConversations: number;
+    totalMessages: number;
+    totalTokens: number;
+    averageResponseTime: number;
+  }> {
     // Implementation would aggregate data from conversations and messages
     return {
       totalConversations: 0,
@@ -321,41 +375,51 @@ export class SupabaseChatRepository implements ChatRepository {
   }
 
   // Helper methods to map database records to domain objects
-  private mapDbMessageToChatMessage = (dbMessage: any): ChatMessage => ({
+  private mapDbMessageToChatMessage = (
+    dbMessage: Database["public"]["Tables"]["chat_messages"]["Row"],
+  ): ChatMessage => ({
     id: dbMessage.id,
-    role: dbMessage.role,
-    content: dbMessage.content,
+    role: dbMessage.role as MessageRole,
+    content: dbMessage.content as unknown as MessageContent[],
     timestamp: new Date(dbMessage.timestamp),
-    metadata: dbMessage.metadata,
+    metadata: dbMessage.metadata as unknown as AIMetadata,
     conversationId: dbMessage.conversation_id,
-    parentId: dbMessage.parent_id,
-    status: dbMessage.status,
-    error: dbMessage.error,
+    parentId: dbMessage.parent_id || undefined,
+    status: dbMessage.status as MessageStatus,
+    error: dbMessage.error || undefined,
   });
 
-  private mapDbConversationToChatConversation = (dbConversation: any): ChatConversation => ({
+  private mapDbConversationToChatConversation = (
+    dbConversation: Database["public"]["Tables"]["chat_conversations"]["Row"],
+  ): ChatConversation => ({
     id: dbConversation.id,
     title: dbConversation.title,
     userId: dbConversation.user_id,
     messages: [], // Would need to be loaded separately
     createdAt: new Date(dbConversation.created_at),
     updatedAt: new Date(dbConversation.updated_at),
-    status: dbConversation.status,
-    metadata: dbConversation.metadata,
-    settings: dbConversation.settings,
+    status: dbConversation.status as ConversationStatus,
+    metadata: dbConversation.metadata as unknown as ConversationMetadata,
+    settings: dbConversation.settings as unknown as ConversationSettings,
   });
 }
 
 /**
  * Factory function to create repository instances
  */
-export function createChatRepository(type: 'supabase' | 'local', config: any): ChatRepository {
+export function createChatRepository(
+  type: "supabase" | "local",
+  config: { supabaseClient?: SupabaseClient },
+): ChatRepository {
   switch (type) {
-    case 'supabase':
+    case "supabase":
+      if (!config.supabaseClient) {
+        throw new Error("SupabaseClient is required for supabase repository");
+      }
       return new SupabaseChatRepository(config.supabaseClient);
-    case 'local':
+    case "local":
       // return new LocalChatRepository(config.storage);
-      throw new Error('Local repository not implemented yet');
+      throw new Error("Local repository not implemented yet");
     default:
       throw new Error(`Unsupported repository type: ${type}`);
   }

@@ -108,7 +108,6 @@ export function useDebounceCallback<T extends (...args: unknown[]) => unknown>(
   const invokeFunc = useCallback(
     (...args: unknown[]) => {
       const time = Date.now();
-      const timeSinceLastCall = time - lastCallTimeRef.current;
       const timeSinceLastInvoke = time - lastInvokeTimeRef.current;
 
       lastCallTimeRef.current = time;

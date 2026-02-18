@@ -5,10 +5,8 @@
 
 import type {
   WorkflowDefinition,
-  WorkflowStep,
   WorkflowExecutionResult,
   WorkflowExecutionContext,
-  WorkflowConfig,
   PromptWorkflowStep,
   ConditionWorkflowStep,
   ParallelWorkflowStep,
@@ -21,7 +19,6 @@ import type {
 import {
   WorkflowStepType,
   WorkflowStatus,
-  WorkflowEventType,
 } from './workflow.types';
 import { workflowEngine } from './workflow-engine';
 

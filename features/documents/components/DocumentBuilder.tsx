@@ -7,9 +7,9 @@ import React from "react";
 import { FileText, ArrowLeft, Download, RotateCcw } from "lucide-react";
 
 import { useDocumentBuilder } from "../hooks";
-import { DynamicQuestionFlow } from "./DynamicQuestionFlow";
-import { DocumentPreview } from "./DocumentPreview";
-import { ExportOptions } from "./ExportOptions";
+import { DynamicQuestionFlow } from ".";
+import { DocumentPreview } from ".";
+import { ExportOptions } from ".";
 import type { DocumentTemplate } from "../types";
 
 interface DocumentBuilderProps {
@@ -23,9 +23,8 @@ export function DocumentBuilder({
   templates = [],
   className = "",
 }: DocumentBuilderProps) {
-  const hook = useDocumentBuilder({ userId });
-  const { state } = hook;
   const {
+    state,
     selectTemplate,
     updateAnswer,
     nextQuestion,
@@ -35,7 +34,8 @@ export function DocumentBuilder({
     exportDocument,
     reset,
     setError,
-  } = hook;
+    setCurrentStep,
+  } = useDocumentBuilder({ userId });
 
   const renderTemplateSelection = () => (
     <div className="max-w-4xl mx-auto p-6">
@@ -62,7 +62,7 @@ export function DocumentBuilder({
             <div
               key={template.id}
               className="bg-white border rounded-lg p-6 hover:shadow-lg transition-shadow cursor-pointer"
-              onClick={() => actions.selectTemplate(template)}
+              onClick={() => selectTemplate(template)}
             >
               <div className="flex items-center justify-between mb-4">
                 <FileText className="h-8 w-8 text-blue-500" />
@@ -89,7 +89,7 @@ export function DocumentBuilder({
         <div className="mt-8 text-center">
           <button
             onClick={() =>
-              actions.selectTemplate({
+              selectTemplate({
                 id: "demo-template",
                 name: "Demo Template",
                 description:
@@ -144,7 +144,7 @@ export function DocumentBuilder({
               {state.selectedTemplate.name}
             </h2>
             <button
-              onClick={actions.reset}
+              onClick={reset}
               className="text-gray-500 hover:text-gray-700 transition-colors"
               title="Start over"
             >
@@ -171,11 +171,12 @@ export function DocumentBuilder({
           template={state.selectedTemplate}
           answers={state.answers}
           currentQuestionIndex={state.currentQuestionIndex}
-          onAnswerUpdate={actions.updateAnswer}
-          onNext={actions.nextQuestion}
-          onPrevious={actions.previousQuestion}
+          onAnswerUpdate={updateAnswer}
+          onNext={nextQuestion}
+          onPrevious={previousQuestion}
           onGenerate={() =>
-            actions.generateDocument({
+            state.selectedTemplate &&
+            generateDocument({
               templateId: state.selectedTemplate.id,
               answers: state.answers,
             })
@@ -212,8 +213,8 @@ export function DocumentBuilder({
 
         <button
           onClick={() => {
-            actions.setError(null);
-            actions.reset();
+            setError(null);
+            reset();
           }}
           className="mt-8 text-gray-500 hover:text-gray-700 transition-colors"
         >
@@ -231,7 +232,7 @@ export function DocumentBuilder({
           <div className="flex items-center gap-4">
             <button
               onClick={() =>
-                actions.generateDocument({
+                generateDocument({
                   templateId: state.selectedTemplate?.id || "",
                   answers: state.answers,
                 })
@@ -242,9 +243,7 @@ export function DocumentBuilder({
               Regenerate
             </button>
             <button
-              onClick={() =>
-                setState((prev) => ({ ...prev, currentStep: "export" }))
-              }
+              onClick={() => setCurrentStep("export")}
               className="flex items-center gap-2 bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition-colors"
             >
               <Download size={16} />
@@ -257,7 +256,7 @@ export function DocumentBuilder({
       {state.generatedDocument && (
         <DocumentPreview
           document={state.generatedDocument}
-          onDocumentUpdate={actions.updateDocument}
+          onDocumentUpdate={updateDocument}
         />
       )}
     </div>
@@ -268,9 +267,7 @@ export function DocumentBuilder({
       <div className="mb-6">
         <div className="flex items-center gap-4 mb-4">
           <button
-            onClick={() =>
-              setState((prev) => ({ ...prev, currentStep: "editing" }))
-            }
+            onClick={() => setCurrentStep("editing")}
             className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
           >
             <ArrowLeft size={16} />
@@ -283,7 +280,7 @@ export function DocumentBuilder({
       {state.generatedDocument && (
         <ExportOptions
           document={state.generatedDocument}
-          onExport={actions.exportDocument}
+          onExport={exportDocument}
         />
       )}
     </div>
@@ -301,13 +298,13 @@ export function DocumentBuilder({
         <p className="text-red-700 mb-4">{state.error}</p>
         <div className="flex gap-4">
           <button
-            onClick={() => actions.setError(null)}
+            onClick={() => setError(null)}
             className="bg-red-100 text-red-700 px-4 py-2 rounded hover:bg-red-200 transition-colors"
           >
             Dismiss
           </button>
           <button
-            onClick={actions.reset}
+            onClick={reset}
             className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 transition-colors"
           >
             Start Over

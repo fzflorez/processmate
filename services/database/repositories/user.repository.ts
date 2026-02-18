@@ -6,7 +6,6 @@
 import { BaseRepository } from "../base-repository";
 import type { User, UserInsert, UserUpdate } from "@/lib/supabase/types";
 import type { ServiceResult } from "../../service-result";
-import type { FindManyOptions } from "../base-repository";
 
 /**
  * User repository extending the base repository with user-specific operations

@@ -4,7 +4,7 @@
  */
 
 import React from 'react';
-import { Play, Pause, Square, CheckCircle, AlertTriangle, Clock, TrendingUp } from 'lucide-react';
+import { Play, Pause, Square, CheckCircle, AlertTriangle, Clock } from 'lucide-react';
 
 import type { ProcessProgressData, ProcessExecutionContext } from '../types';
 
@@ -71,8 +71,6 @@ export function ProcessProgress({
 
   const isRunning = progressData.status === 'running';
   const isPaused = progressData.status === 'paused';
-  const isCompleted = progressData.status === 'completed';
-  const hasFailed = progressData.status === 'failed';
 
   return (
     <div className="bg-white rounded-lg shadow-sm border">

@@ -4,9 +4,7 @@
  */
 
 import type {
-  PromptTemplate,
   PromptExecutionContext,
-  PromptExecutionResult,
 } from "../prompts/prompt.types";
 
 /**

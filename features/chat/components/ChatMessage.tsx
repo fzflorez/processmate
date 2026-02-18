@@ -255,5 +255,3 @@ export function ChatMessage({
     </div>
   );
 }
-
-export default ChatMessage;

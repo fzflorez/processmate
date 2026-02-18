@@ -111,7 +111,7 @@ export function ProcessChecklist({
           </div>
         ) : (
           <div className="space-y-3">
-            {sortedSteps.map((step, index) => {
+            {sortedSteps.map((step) => {
               const isCompleted = completedSteps.includes(step.id);
               const isInProgress = selectedStepId === step.id;
               const progress = getStepProgress(step);

@@ -16,3 +16,11 @@ export {
   SupabaseChatRepository,
   createChatRepository,
 } from "./services";
+
+// Component exports
+export {
+  ChatContainer,
+  ChatMessage,
+  ChatInput,
+  TypingIndicator,
+} from "./components";

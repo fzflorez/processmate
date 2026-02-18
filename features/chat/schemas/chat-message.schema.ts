@@ -5,20 +5,38 @@
 
 import { z } from "zod";
 
+/* ============================================================
+   Base Enums
+============================================================ */
+
 export const MessageRoleSchema = z.enum([
   "user",
   "assistant",
   "system",
 ] as const);
 
+export const MessageStatusSchema = z.enum([
+  "sending",
+  "sent",
+  "processing",
+  "completed",
+  "failed",
+  "edited",
+] as const);
+
+/* ============================================================
+   Content
+============================================================ */
+
 export const MessageContentSchema = z.object({
   text: z.string().min(1, "Message content cannot be empty"),
-  type: z
-    .enum(["text", "markdown", "code"] as const)
-    .optional()
-    .default("text"),
+  type: z.enum(["text", "markdown", "code"] as const).default("text"),
   metadata: z.record(z.string(), z.unknown()).optional(),
 });
+
+/* ============================================================
+   AI Metadata
+============================================================ */
 
 export const AIMetadataSchema = z.object({
   model: z.string().optional(),
@@ -33,30 +51,37 @@ export const AIMetadataSchema = z.object({
   reasoning: z.string().optional(),
 });
 
-export const MessageStatusSchema = z.enum([
-  "sending",
-  "sent",
-  "processing",
-  "completed",
-  "failed",
-  "edited",
-] as const);
+/* ============================================================
+   Chat Message
+============================================================ */
 
 export const ChatMessageSchema = z.object({
   id: z
     .string()
     .uuid()
-    .optional()
     .default(() => crypto.randomUUID()),
+
   role: MessageRoleSchema,
-  content: z.array(MessageContentSchema).default([]),
+
+  content: z
+    .array(MessageContentSchema)
+    .min(1, "At least one content item is required"),
+
   timestamp: z.coerce.date().default(() => new Date()),
+
   metadata: AIMetadataSchema.optional(),
+
   conversationId: z.string().uuid().optional(),
   parentId: z.string().uuid().optional(),
+
   status: MessageStatusSchema.default("completed"),
+
   error: z.string().optional(),
 });
+
+/* ============================================================
+   Attachments & Reactions
+============================================================ */
 
 export const MessageAttachmentSchema = z.object({
   id: z.string().uuid("Invalid attachment ID format"),
@@ -71,8 +96,12 @@ export const MessageReactionSchema = z.object({
   id: z.string().uuid("Invalid reaction ID format"),
   emoji: z.string().min(1, "Emoji is required"),
   userId: z.string().uuid("Invalid user ID format"),
-  timestamp: z.coerce.date(),
+  timestamp: z.coerce.date().default(() => new Date()),
 });
+
+/* ============================================================
+   Extended Message
+============================================================ */
 
 export const ExtendedChatMessageSchema = ChatMessageSchema.extend({
   attachments: z.array(MessageAttachmentSchema).optional(),
@@ -81,14 +110,27 @@ export const ExtendedChatMessageSchema = ChatMessageSchema.extend({
   editedAt: z.coerce.date().optional(),
 });
 
+/* ============================================================
+   Stream Chunk (FIXED)
+============================================================ */
+
 export const MessageStreamChunkSchema = z.object({
-  id: z.string().uuid("Invalid stream chunk ID format"),
-  content: z.string(),
-  isComplete: z.boolean(),
-  timestamp: z.coerce.date(),
+  id: z
+    .string()
+    .uuid()
+    .default(() => crypto.randomUUID()),
+
+  content: z.string().default(""),
+
+  isComplete: z.boolean().default(false),
+
+  timestamp: z.coerce.date().default(() => new Date()),
 });
 
-// Validation functions
+/* ============================================================
+   Validation Helpers
+============================================================ */
+
 export const validateChatMessage = (data: unknown) => {
   return ChatMessageSchema.safeParse(data);
 };
@@ -101,7 +143,10 @@ export const validateMessageStreamChunk = (data: unknown) => {
   return MessageStreamChunkSchema.safeParse(data);
 };
 
-// Type exports for inference
+/* ============================================================
+   Types
+============================================================ */
+
 export type ChatMessageInput = z.infer<typeof ChatMessageSchema>;
 export type ExtendedChatMessageInput = z.infer<
   typeof ExtendedChatMessageSchema

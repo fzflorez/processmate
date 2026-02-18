@@ -46,9 +46,9 @@ export class SupabaseService {
     data: Database["public"]["Tables"][T]["Insert"],
   ): Promise<ServiceResult<Database["public"]["Tables"][T]["Row"]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from(table)
-        .insert(data as any)
+        .insert(data)
         .select()
         .single();
 
@@ -62,14 +62,15 @@ export class SupabaseService {
         );
       }
 
-      return createSuccessResult(result);
-    } catch (error) {
+      // Type assertion to ensure result is the correct type
+      return createSuccessResult(
+        result as Database["public"]["Tables"][T]["Row"],
+      );
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -82,7 +83,7 @@ export class SupabaseService {
     id: string,
   ): Promise<ServiceResult<Database["public"]["Tables"][T]["Row"]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from(table)
         .select("*")
         .eq("id", id)
@@ -108,14 +109,15 @@ export class SupabaseService {
         );
       }
 
-      return createSuccessResult(result);
-    } catch (error) {
+      // Type assertion to ensure result is the correct type
+      return createSuccessResult(
+        result as Database["public"]["Tables"][T]["Row"],
+      );
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -129,9 +131,9 @@ export class SupabaseService {
     data: Database["public"]["Tables"][T]["Update"],
   ): Promise<ServiceResult<Database["public"]["Tables"][T]["Row"]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from(table)
-        .update(data as any)
+        .update(data)
         .eq("id", id)
         .select()
         .single();
@@ -156,14 +158,15 @@ export class SupabaseService {
         );
       }
 
-      return createSuccessResult(result);
-    } catch (error) {
+      // Type assertion to ensure result is the correct type
+      return createSuccessResult(
+        result as Database["public"]["Tables"][T]["Row"],
+      );
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -176,10 +179,7 @@ export class SupabaseService {
     id: string,
   ): Promise<ServiceResult<void>> {
     try {
-      const { error } = await (this.client as any)
-        .from(table)
-        .delete()
-        .eq("id", id);
+      const { error } = await this.client.from(table).delete().eq("id", id);
 
       if (error) {
         return createErrorResult(
@@ -192,13 +192,11 @@ export class SupabaseService {
       }
 
       return createSuccessResult(undefined);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -219,12 +217,14 @@ export class SupabaseService {
     } = {},
   ): Promise<ServiceResult<Database["public"]["Tables"][T]["Row"][]>> {
     try {
-      let query = (this.client as any).from(table).select("*");
+      let query = this.client.from(table).select("*");
 
       // Apply filters
       if (options.filter) {
         Object.entries(options.filter).forEach(([key, value]) => {
-          query = query.eq(key, value);
+          if (value !== undefined && value !== null) {
+            query = query.eq(key, value as string | number | boolean | null);
+          }
         });
       }
 
@@ -259,14 +259,14 @@ export class SupabaseService {
         );
       }
 
-      return createSuccessResult(result || []);
-    } catch (error) {
+      return createSuccessResult(
+        (result as unknown as Database["public"]["Tables"][T]["Row"][]) || [],
+      );
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -312,7 +312,7 @@ export class UserService extends SupabaseService {
    */
   async getUserByEmail(email: string): Promise<ServiceResult<User | null>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("users")
         .select("*")
         .eq("email", email)
@@ -332,13 +332,11 @@ export class UserService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -380,7 +378,7 @@ export class ProfileService extends SupabaseService {
     userId: string,
   ): Promise<ServiceResult<Profile | null>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("profiles")
         .select("*")
         .eq("user_id", userId)
@@ -400,13 +398,11 @@ export class ProfileService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -418,7 +414,7 @@ export class ProfileService extends SupabaseService {
     profileData: ProfileInsert,
   ): Promise<ServiceResult<Profile>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("profiles")
         .upsert(profileData)
         .select()
@@ -435,13 +431,11 @@ export class ProfileService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -454,9 +448,11 @@ export class ProfileService extends SupabaseService {
     profileData: ProfileUpdate,
   ): Promise<ServiceResult<Profile>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      // Use type assertion to bypass the broken generic type inference
+      const client = this.client as any;
+      const { data: result, error } = await client
         .from("profiles")
-        .update(profileData as any)
+        .update(profileData)
         .eq("user_id", userId)
         .select()
         .single();
@@ -472,12 +468,12 @@ export class ProfileService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
       return createErrorResult(
         ServiceError.unknownError(
           error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
+          "UNKNOWN_ERROR",
+          error instanceof Error ? error : undefined,
         ),
       );
     }
@@ -502,7 +498,7 @@ export class WorkflowService extends SupabaseService {
     workflowData: WorkflowInsert,
   ): Promise<ServiceResult<Workflow>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("workflows")
         .insert(workflowData)
         .select()
@@ -519,13 +515,11 @@ export class WorkflowService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -590,7 +584,7 @@ export class WorkflowExecutionService extends SupabaseService {
     executionData: WorkflowExecutionInsert,
   ): Promise<ServiceResult<WorkflowExecution>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("workflow_executions")
         .insert(executionData)
         .select()
@@ -607,13 +601,11 @@ export class WorkflowExecutionService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -635,7 +627,7 @@ export class WorkflowExecutionService extends SupabaseService {
     workflowId: string,
   ): Promise<ServiceResult<WorkflowExecution[]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("workflow_executions")
         .select("*")
         .eq("workflow_id", workflowId)
@@ -652,13 +644,11 @@ export class WorkflowExecutionService extends SupabaseService {
       }
 
       return createSuccessResult(result || []);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -670,7 +660,7 @@ export class WorkflowExecutionService extends SupabaseService {
     userId: string,
   ): Promise<ServiceResult<WorkflowExecution[]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("workflow_executions")
         .select("*")
         .eq("user_id", userId)
@@ -687,13 +677,11 @@ export class WorkflowExecutionService extends SupabaseService {
       }
 
       return createSuccessResult(result || []);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -727,7 +715,7 @@ export class PromptService extends SupabaseService {
    */
   async createPrompt(promptData: PromptInsert): Promise<ServiceResult<Prompt>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("prompts")
         .insert(promptData)
         .select()
@@ -744,13 +732,11 @@ export class PromptService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -797,7 +783,7 @@ export class PromptService extends SupabaseService {
    */
   async searchPrompts(query: string): Promise<ServiceResult<Prompt[]>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("prompts")
         .select("*")
         .or(`name.ilike.%${query}%,description.ilike.%${query}%`)
@@ -814,13 +800,11 @@ export class PromptService extends SupabaseService {
       }
 
       return createSuccessResult(result || []);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -842,7 +826,7 @@ export class ApiKeyService extends SupabaseService {
    */
   async createApiKey(apiKeyData: ApiKeyInsert): Promise<ServiceResult<ApiKey>> {
     try {
-      const { data: result, error } = await (this.client as any)
+      const { data: result, error } = await this.client
         .from("api_keys")
         .insert(apiKeyData)
         .select()
@@ -859,13 +843,11 @@ export class ApiKeyService extends SupabaseService {
       }
 
       return createSuccessResult(result);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-          undefined,
-          error as Error,
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }
@@ -912,9 +894,9 @@ export class ApiKeyService extends SupabaseService {
    */
   async updateLastUsed(id: string): Promise<ServiceResult<void>> {
     try {
-      const { error } = await (this.client as any)
+      const { error } = await this.client
         .from("api_keys")
-        .update({ last_used_at: new Date().toISOString() } as any)
+        .update({ last_used_at: new Date().toISOString() })
         .eq("id", id);
 
       if (error) {
@@ -928,11 +910,11 @@ export class ApiKeyService extends SupabaseService {
       }
 
       return createSuccessResult(undefined);
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error instanceof Error ? error : new Error("Unknown error");
+
       return createErrorResult(
-        ServiceError.unknownError(
-          error instanceof Error ? error.message : "Unknown error",
-        ),
+        ServiceError.unknownError(err.message, undefined, err),
       );
     }
   }

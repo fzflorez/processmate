@@ -13,6 +13,7 @@ import type {
   ChatConversation,
 } from "@/features/chat/types";
 import { MessageStatus } from "@/features/chat/types";
+import { OpenAIAIService } from "@/features/chat/services/openai-ai.service";
 
 // Simple UUID generator for conversation IDs
 const generateUUID = (): string => {
@@ -22,35 +23,6 @@ const generateUUID = (): string => {
     return v.toString(16);
   });
 };
-
-// Mock AI Service implementation (replace with actual implementation)
-class MockAIService {
-  async sendMessage(message: string, conversationId: string) {
-    // Simulate streaming response
-    const response = `This is a mock response to: "${message}" (Conversation: ${conversationId.slice(0, 8)}...). In a real implementation, this would be connected to an AI service like OpenAI.`;
-
-    return (async function* () {
-      const words = response.split(" ");
-      for (const word of words) {
-        yield {
-          content: word + " ",
-          isComplete: false,
-          metadata: null,
-        };
-        await new Promise((resolve) => setTimeout(resolve, 50));
-      }
-      yield {
-        content: "",
-        isComplete: true,
-        metadata: null,
-      };
-    })();
-  }
-
-  async regenerateResponse(messageId: string, conversationId: string) {
-    return this.sendMessage("Regenerating response...", conversationId);
-  }
-}
 
 // Mock Chat Repository implementation (replace with actual implementation)
 class MockChatRepository {
@@ -73,6 +45,59 @@ class MockChatRepository {
     this.messages.set(message.conversationId, conversationMessages);
   }
 
+  async getMessage(messageId: string): Promise<ExtendedChatMessage | null> {
+    for (const messages of this.messages.values()) {
+      const message = messages.find((msg) => msg.id === messageId);
+      if (message) return message;
+    }
+    return null;
+  }
+
+  async getMessages(
+    conversationId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<ExtendedChatMessage[]> {
+    const messages = this.messages.get(conversationId) || [];
+    let result = messages;
+
+    if (offset) {
+      result = result.slice(offset);
+    }
+
+    if (limit) {
+      result = result.slice(0, limit);
+    }
+
+    return result;
+  }
+
+  async updateMessageStatus(
+    messageId: string,
+    status: MessageStatus,
+  ): Promise<void> {
+    // Find and update message across all conversations
+    for (const [conversationId, messages] of this.messages.entries()) {
+      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+      if (messageIndex >= 0) {
+        messages[messageIndex] = { ...messages[messageIndex], status };
+        this.messages.set(conversationId, messages);
+        break;
+      }
+    }
+  }
+
+  async deleteMessage(messageId: string): Promise<void> {
+    for (const [conversationId, messages] of this.messages.entries()) {
+      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
+      if (messageIndex >= 0) {
+        messages.splice(messageIndex, 1);
+        this.messages.set(conversationId, messages);
+        break;
+      }
+    }
+  }
+
   async saveConversation(conversation: ChatConversation): Promise<void> {
     this.conversations.set(conversation.id, conversation);
   }
@@ -90,19 +115,91 @@ class MockChatRepository {
     };
   }
 
-  async updateMessageStatus(
-    messageId: string,
-    status: MessageStatus,
-  ): Promise<void> {
-    // Find and update message across all conversations
-    for (const [conversationId, messages] of this.messages.entries()) {
-      const messageIndex = messages.findIndex((msg) => msg.id === messageId);
-      if (messageIndex >= 0) {
-        messages[messageIndex] = { ...messages[messageIndex], status };
-        this.messages.set(conversationId, messages);
-        break;
-      }
+  async getConversations(
+    userId: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<ChatConversation[]> {
+    const conversations = Array.from(this.conversations.values())
+      .filter((conv) => conv.userId === userId)
+      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+
+    let result = conversations;
+
+    if (offset) {
+      result = result.slice(offset);
     }
+
+    if (limit) {
+      result = result.slice(0, limit);
+    }
+
+    return result;
+  }
+
+  async updateConversation(
+    conversationId: string,
+    updates: Partial<ChatConversation>,
+  ): Promise<void> {
+    const conversation = this.conversations.get(conversationId);
+    if (conversation) {
+      this.conversations.set(conversationId, {
+        ...conversation,
+        ...updates,
+        updatedAt: new Date(),
+      });
+    }
+  }
+
+  async deleteConversation(conversationId: string): Promise<void> {
+    this.conversations.delete(conversationId);
+    this.messages.delete(conversationId);
+  }
+
+  async searchConversations(
+    userId: string,
+    _query: string,
+    _filters?: {
+      status?: string[];
+      dateRange?: { start: Date; end: Date };
+      tags?: string[];
+    },
+  ): Promise<ChatConversation[]> {
+    return this.getConversations(userId);
+  }
+
+  async searchMessages(
+    conversationId: string,
+    query: string,
+  ): Promise<ExtendedChatMessage[]> {
+    const messages = this.messages.get(conversationId) || [];
+    return messages.filter((msg) =>
+      msg.content.some((content) =>
+        content.text.toLowerCase().includes(query.toLowerCase()),
+      ),
+    );
+  }
+
+  async getConversationStats(userId: string): Promise<{
+    totalConversations: number;
+    totalMessages: number;
+    totalTokens: number;
+    averageResponseTime: number;
+  }> {
+    const conversations = await this.getConversations(userId);
+    let totalMessages = 0;
+
+    for (const conversation of conversations) {
+      const messages = this.messages.get(conversation.id) || [];
+      totalMessages += messages.length;
+    }
+
+    return {
+      totalConversations: conversations.length,
+      totalMessages,
+      totalTokens: 0,
+      averageResponseTime: 0,
+    };
   }
 }
 
@@ -115,7 +212,7 @@ export default function ChatPage() {
   const userId = "demo-user"; // In a real app, get from auth context
 
   // Initialize services
-  const [aiService] = useState(() => new MockAIService());
+  const [aiService] = useState(() => new OpenAIAIService());
   const [repository] = useState(() => new MockChatRepository());
 
   // Set client state after mount to prevent hydration mismatch

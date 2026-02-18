@@ -6,3 +6,6 @@ export * from "./hooks";
 export * from "./services";
 export * from "./types";
 export * from "./schemas";
+
+// Workflow Engine Integration
+export * from "../../workflows";

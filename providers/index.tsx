@@ -8,7 +8,7 @@
 import React, { ReactNode } from "react";
 
 // Import future providers here
-// import { QueryProvider } from './query-provider';
+import { QueryProvider } from "./query-provider";
 // import { AuthProvider } from './auth-provider';
 // import { ThemeProvider } from './theme-provider';
 // import { ConfigProvider } from './config-provider';
@@ -74,7 +74,7 @@ function composeProviders(
  * The last provider will be the outermost wrapper
  */
 const providers: Array<React.FC<{ children: ReactNode }>> = [
-  // QueryProvider,      // Will be added when TanStack Query is installed
+  QueryProvider, // TanStack Query for data fetching and caching
   // AuthProvider,        // Will be added when auth system is implemented
   // ThemeProvider,       // Will be added when theming is implemented
   // ConfigProvider,      // Will be added when config provider is implemented
@@ -93,7 +93,7 @@ export const Providers: React.FC<{ children: ReactNode }> = composeProviders(
  * Export individual providers when they need to be used separately
  */
 
-// export { QueryProvider } from './query-provider';
+export { QueryProvider } from "./query-provider";
 // export { AuthProvider } from './auth-provider';
 // export { ThemeProvider } from './theme-provider';
 // export { ConfigProvider } from './config-provider';

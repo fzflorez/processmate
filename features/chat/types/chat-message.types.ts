@@ -4,14 +4,14 @@
  */
 
 export enum MessageRole {
-  USER = 'user',
-  ASSISTANT = 'assistant',
-  SYSTEM = 'system',
+  USER = "user",
+  ASSISTANT = "assistant",
+  SYSTEM = "system",
 }
 
 export interface MessageContent {
   text: string;
-  type?: 'text' | 'markdown' | 'code';
+  type?: "text" | "markdown" | "code";
   metadata?: Record<string, unknown>;
 }
 
@@ -41,12 +41,12 @@ export interface ChatMessage {
 }
 
 export enum MessageStatus {
-  SENDING = 'sending',
-  SENT = 'sent',
-  PROCESSING = 'processing',
-  COMPLETED = 'completed',
-  FAILED = 'failed',
-  EDITED = 'edited',
+  SENDING = "sending",
+  SENT = "sent",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed",
+  EDITED = "edited",
 }
 
 export interface MessageAttachment {
@@ -63,6 +63,7 @@ export interface ExtendedChatMessage extends ChatMessage {
   reactions?: MessageReaction[];
   isEdited?: boolean;
   editedAt?: Date;
+  intentContent?: import("./intent-message.types").IntentMessageContent;
 }
 
 export interface MessageReaction {
@@ -74,7 +75,7 @@ export interface MessageReaction {
 
 export interface MessageStreamChunk {
   id: string;
-  content: string;
+  content: string | import("./intent-message.types").IntentMessageContent;
   isComplete: boolean;
   timestamp: Date;
 }

@@ -21,6 +21,7 @@ import type {
   ExtendedChatMessage,
 } from "../types";
 import { MessageRole, MessageStatus, ConversationStatus } from "../types";
+import type { IntentMessageContent } from "../types";
 import {
   validateExtendedChatMessage,
   validateMessageStreamChunk,
@@ -157,24 +158,41 @@ export function useChat({
 
   // Update message content (for streaming)
   const updateMessageContent = useCallback(
-    (messageId: string, content: string, isComplete: boolean) => {
+    (
+      messageId: string,
+      content: string | IntentMessageContent,
+      isComplete: boolean,
+    ) => {
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id === messageId) {
-            const updatedContent = [...msg.content];
-            if (updatedContent.length > 0) {
-              updatedContent[0] = { ...updatedContent[0], text: content };
+            // Handle structured content vs string content
+            if (typeof content === "object" && content !== null) {
+              // This is a structured intent response
+              return {
+                ...msg,
+                intentContent: content,
+                status: isComplete
+                  ? MessageStatus.COMPLETED
+                  : MessageStatus.PROCESSING,
+              };
             } else {
-              updatedContent.push({ text: content, type: "text" });
-            }
+              // This is a regular string response
+              const updatedContent = [...msg.content];
+              if (updatedContent.length > 0) {
+                updatedContent[0] = { ...updatedContent[0], text: content };
+              } else {
+                updatedContent.push({ text: content, type: "text" });
+              }
 
-            return {
-              ...msg,
-              content: updatedContent,
-              status: isComplete
-                ? MessageStatus.COMPLETED
-                : MessageStatus.PROCESSING,
-            };
+              return {
+                ...msg,
+                content: updatedContent,
+                status: isComplete
+                  ? MessageStatus.COMPLETED
+                  : MessageStatus.PROCESSING,
+              };
+            }
           }
           return msg;
         }),
@@ -234,10 +252,14 @@ export function useChat({
 
         const stream = await aiService.sendMessage(content, conversationId);
 
-        let fullResponse = "";
+        let fullResponse: string | IntentMessageContent = "";
 
         for await (const chunk of stream) {
           if (abortController.signal.aborted) break;
+
+          // DEBUG: Log chunk content type and raw data
+          console.log("TYPE OF CHUNK CONTENT:", typeof chunk.content);
+          console.log("RAW CHUNK:", chunk);
 
           // Validate chunk
           const chunkValidation = validateMessageStreamChunk(chunk);
@@ -246,18 +268,50 @@ export function useChat({
             continue;
           }
 
-          fullResponse += chunk.content;
+          // Handle both string and object content
+          let parsedIntent = null;
+
+          if (typeof chunk.content === "string") {
+            try {
+              const parsed = JSON.parse(chunk.content);
+              if (parsed && parsed.intent) {
+                parsedIntent = parsed;
+              }
+            } catch {
+              // no es JSON válido, se mantiene como texto normal
+            }
+          }
+
+          if (parsedIntent) {
+            fullResponse = parsedIntent;
+          } else if (
+            typeof chunk.content === "object" &&
+            chunk.content !== null
+          ) {
+            fullResponse = chunk.content as IntentMessageContent;
+          } else {
+            fullResponse = (fullResponse as string) + (chunk.content as string);
+          }
+
           updateMessageContent(aiMessageId, fullResponse, chunk.isComplete);
 
           // Update AI metadata if available
-          if (chunk.isComplete && aiMessage.metadata) {
-            // This would be populated by the AI service
+          if (chunk.isComplete) {
             updateMessageStatus(aiMessageId, MessageStatus.COMPLETED);
-            await repository.saveMessage({
+
+            // Save message with appropriate content structure
+            const messageToSave: ExtendedChatMessage = {
               ...aiMessage,
-              content: [{ text: fullResponse, type: "text" }],
               status: MessageStatus.COMPLETED,
-            });
+            };
+
+            if (typeof fullResponse === "object") {
+              messageToSave.intentContent = fullResponse;
+            } else {
+              messageToSave.content = [{ text: fullResponse, type: "text" }];
+            }
+
+            await repository.saveMessage(messageToSave);
           }
         }
 
@@ -330,22 +384,59 @@ export function useChat({
           conversationId,
         );
 
-        let fullResponse = "";
+        let fullResponse: string | IntentMessageContent = "";
 
         for await (const chunk of stream) {
+          // DEBUG: Log chunk content type and raw data
+          console.log("TYPE OF CHUNK CONTENT:", typeof chunk.content);
+          console.log("RAW CHUNK:", chunk);
+
           const chunkValidation = validateMessageStreamChunk(chunk);
           if (!chunkValidation.success) continue;
 
-          fullResponse += chunk.content;
+          // Handle both string and object content
+          let parsedIntent = null;
+
+          if (typeof chunk.content === "string") {
+            try {
+              const parsed = JSON.parse(chunk.content);
+              if (parsed && parsed.intent) {
+                parsedIntent = parsed;
+              }
+            } catch {
+              // no es JSON válido, se mantiene como texto normal
+            }
+          }
+
+          if (parsedIntent) {
+            fullResponse = parsedIntent;
+          } else if (
+            typeof chunk.content === "object" &&
+            chunk.content !== null
+          ) {
+            fullResponse = chunk.content as IntentMessageContent;
+          } else {
+            fullResponse = (fullResponse as string) + (chunk.content as string);
+          }
+
           updateMessageContent(messageId, fullResponse, chunk.isComplete);
 
           if (chunk.isComplete) {
             await updateMessageStatus(messageId, MessageStatus.COMPLETED);
-            await repository.saveMessage({
+
+            // Save message with appropriate content structure
+            const messageToSave: ExtendedChatMessage = {
               ...messageToRegenerate,
-              content: [{ text: fullResponse, type: "text" }],
               status: MessageStatus.COMPLETED,
-            });
+            };
+
+            if (typeof fullResponse === "object") {
+              messageToSave.intentContent = fullResponse;
+            } else {
+              messageToSave.content = [{ text: fullResponse, type: "text" }];
+            }
+
+            await repository.saveMessage(messageToSave);
           }
         }
       } catch (err) {

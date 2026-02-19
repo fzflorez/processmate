@@ -8,6 +8,15 @@ import { Bot, User, Edit2, Check, X, Copy, RefreshCw } from "lucide-react";
 
 import type { ExtendedChatMessage } from "../types";
 import { MessageRole, MessageStatus } from "../types";
+import { ProcessCard } from "./ProcessCard";
+import { DocumentCard } from "./DocumentCard";
+import { ReminderCard } from "./ReminderCard";
+import {
+  isProcessContent,
+  isDocumentContent,
+  isReminderContent,
+  isGeneralContent,
+} from "../types";
 
 interface ChatMessageProps {
   message: ExtendedChatMessage;
@@ -156,23 +165,86 @@ export function ChatMessage({
           </div>
         ) : (
           <div className="prose prose-sm max-w-none">
-            {message.content.map((content, index) => (
-              <div key={index}>
-                {content.type === "markdown" ? (
-                  <div className="whitespace-pre-wrap text-gray-800">
-                    {content.text}
-                  </div>
-                ) : content.type === "code" ? (
-                  <pre className="rounded-md bg-gray-100 p-3 text-sm font-mono text-gray-800">
-                    <code>{content.text}</code>
-                  </pre>
-                ) : (
-                  <p className="text-gray-800 whitespace-pre-wrap">
-                    {content.text}
-                  </p>
-                )}
+            {/* Intent-based rendering for AI messages */}
+            {isAI &&
+            (message.intentContent ||
+              (typeof message.content[0]?.text === "object" &&
+                message.content[0]?.text !== null)) ? (
+              <div className="space-y-4">
+                {(() => {
+                  const intentData =
+                    message.intentContent || message.content[0]?.text;
+
+                  if (!intentData || typeof intentData !== "object")
+                    return null;
+
+                  switch (intentData.intent) {
+                    case "process":
+                      return (
+                        isProcessContent(intentData.content) && (
+                          <ProcessCard
+                            title={intentData.title}
+                            summary={intentData.summary}
+                            content={intentData.content}
+                            confidence={intentData.confidence}
+                          />
+                        )
+                      );
+                    case "document":
+                      return (
+                        isDocumentContent(intentData.content) && (
+                          <DocumentCard
+                            title={intentData.title}
+                            summary={intentData.summary}
+                            content={intentData.content}
+                            confidence={intentData.confidence}
+                          />
+                        )
+                      );
+                    case "reminder":
+                      return (
+                        isReminderContent(intentData.content) && (
+                          <ReminderCard
+                            title={intentData.title}
+                            summary={intentData.summary}
+                            content={intentData.content}
+                            confidence={intentData.confidence}
+                          />
+                        )
+                      );
+                    case "general":
+                      return (
+                        isGeneralContent(intentData.content) && (
+                          <div className="text-gray-800 whitespace-pre-wrap">
+                            {intentData.content.response}
+                          </div>
+                        )
+                      );
+                    default:
+                      return null;
+                  }
+                })()}
               </div>
-            ))}
+            ) : (
+              /* Legacy message rendering */
+              message.content.map((content, index) => (
+                <div key={index}>
+                  {content.type === "markdown" ? (
+                    <div className="whitespace-pre-wrap text-gray-800">
+                      {content.text}
+                    </div>
+                  ) : content.type === "code" ? (
+                    <pre className="rounded-md bg-gray-100 p-3 text-sm font-mono text-gray-800">
+                      <code>{content.text}</code>
+                    </pre>
+                  ) : (
+                    <p className="text-gray-800 whitespace-pre-wrap">
+                      {content.text}
+                    </p>
+                  )}
+                </div>
+              ))
+            )}
 
             {/* Loading indicator for processing messages */}
             {isLoading && (

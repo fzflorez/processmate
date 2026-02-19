@@ -5,6 +5,7 @@
 
 import type { AIService } from "./ai-service.interface";
 import type { MessageStreamChunk } from "../types";
+import type { IntentMessageContent } from "../types";
 
 export class OpenAIAIService implements AIService {
   private model: string = "gpt-4o-mini";
@@ -22,6 +23,9 @@ export class OpenAIAIService implements AIService {
     messageId: string,
     conversationId: string,
   ): Promise<AsyncIterable<MessageStreamChunk>> {
+    console.log(
+      `Regenerating response for message ${messageId} in conversation ${conversationId}`,
+    );
     return this.streamResponse(
       "Please regenerate your previous response.",
       conversationId,
@@ -105,9 +109,23 @@ export class OpenAIAIService implements AIService {
                 try {
                   const chunk = JSON.parse(jsonStr);
 
+                  // Handle structured JSON responses vs string responses
+                  let content: string | IntentMessageContent;
+
+                  if (
+                    typeof chunk.content === "object" &&
+                    chunk.content !== null
+                  ) {
+                    // This is a structured intent response
+                    content = chunk.content as IntentMessageContent;
+                  } else {
+                    // This is a regular string response
+                    content = chunk.content;
+                  }
+
                   yield {
                     id: crypto.randomUUID(),
-                    content: chunk.content,
+                    content: content,
                     isComplete: chunk.isComplete,
                     timestamp: new Date(),
                   };
